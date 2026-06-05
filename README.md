@@ -5,10 +5,13 @@ InternSync is a modern, enterprise-grade Intern Management System designed with 
 ## 🚀 Features
 
 - **Liquid UI/UX**: A state-of-the-art, fully responsive frontend featuring animated gradients, floating elements, and deep glassmorphism effects.
+- **Authentication & Authorization**: Secure JWT-based authentication with Role-Based Access Control (RBAC). 
+  - **ADMIN**: Can manage all interns, assign projects, and view analytics.
+  - **INTERN**: Can view their own profile and assigned projects.
+- **Project Management**: Create projects, set statuses, and assign multiple interns to a project.
 - **Analytics Dashboard**: Real-time visualization of intern metrics, categorized by university and specialization.
 - **Advanced Filtering**: Filter the directory by name, ID, or specific IT specializations.
 - **PDF Export**: Instantly export custom-filtered intern directory reports to PDF.
-- **Full CRUD API**: A robust Spring Boot backend to register, update, delete, and view intern records.
 - **Network Ready**: Built-in dynamic IP routing so the frontend automatically adapts to network deployments without hardcoded IPs.
 
 ## 🛠 Tech Stack
@@ -19,10 +22,12 @@ InternSync is a modern, enterprise-grade Intern Management System designed with 
 - Recharts (Data Visualization)
 - jsPDF & jsPDF-AutoTable (PDF Generation)
 - React Router DOM
+- Axios
 
 **Backend:**
 - Java 21
-- Spring Boot
+- Spring Boot 3.2.5
+- Spring Security & JJWT
 - Spring Data MongoDB
 - Maven
 
@@ -52,6 +57,12 @@ mvn spring-boot:run
 
 The backend API will start on `http://localhost:19090`.
 
+> **Note on Default Admin Account:**
+> On first startup, if no admin user exists, the backend will automatically create a default ADMIN account:
+> - **Username**: admin
+> - **Password**: Admin@12345
+> - **Email**: admin@internsync.local
+
 ### 2. Frontend (React / Vite)
 
 Open a new terminal and navigate to the `frontend` directory:
@@ -62,7 +73,26 @@ npm install
 npm run dev
 ```
 
-The application will be accessible at `http://localhost:15173`.
+The application will be accessible at `http://localhost:15173`. You can log in using the default admin credentials.
+
+## 🔐 Key API Endpoints
+
+**Authentication:**
+- `POST /api/auth/login` - Authenticate user and get JWT
+- `POST /api/auth/forgot-password` - Generate password reset token
+- `POST /api/auth/reset-password` - Reset password using token
+- `GET /api/auth/me` - Get current logged-in user
+
+**Interns (Secured):**
+- `GET /api/interns` - List all interns (ADMIN only)
+- `POST /api/interns` - Create intern (ADMIN only)
+- `GET /api/interns/{id}` - Get specific intern (ADMIN or own profile)
+
+**Projects (Secured):**
+- `GET /api/projects` - List all projects (ADMIN only)
+- `POST /api/projects` - Create project (ADMIN only)
+- `POST /api/projects/{id}/assign-interns` - Assign interns to project (ADMIN only)
+- `GET /api/projects/my-projects` - Get projects assigned to logged in intern (INTERN only)
 
 ## 📦 Production Deployment (Windows IIS)
 

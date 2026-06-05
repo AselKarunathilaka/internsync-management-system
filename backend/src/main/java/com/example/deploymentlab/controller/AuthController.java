@@ -1,0 +1,282 @@
+package com.example.deploymentlab.controller;
+
+import com.example.deploymentlab.config.JwtUtils;
+import com.example.deploymentlab.config.UserDetailsImpl;
+import com.example.deploymentlab.model.Intern;
+import com.example.deploymentlab.model.PasswordResetToken;
+import com.example.deploymentlab.model.User;
+import com.example.deploymentlab.repository.InternRepository;
+import com.example.deploymentlab.repository.PasswordResetTokenRepository;
+import com.example.deploymentlab.repository.UserRepository;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+
+@RestController
+@RequestMapping("/api/auth")
+public class AuthController {
+
+    private final AuthenticationManager authenticationManager;
+    private final UserRepository userRepository;
+    private final PasswordEncoder encoder;
+    private final JwtUtils jwtUtils;
+    private final PasswordResetTokenRepository tokenRepository;
+    private final InternRepository internRepository;
+
+    public AuthController(AuthenticationManager authenticationManager, UserRepository userRepository,
+                          PasswordEncoder encoder, JwtUtils jwtUtils, PasswordResetTokenRepository tokenRepository, InternRepository internRepository) {
+        this.authenticationManager = authenticationManager;
+        this.userRepository = userRepository;
+        this.encoder = encoder;
+        this.jwtUtils = jwtUtils;
+        this.tokenRepository = tokenRepository;
+        this.internRepository = internRepository;
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
+        // Resolve username from email if needed
+        String username = loginRequest.getUsernameOrEmail();
+        Optional<User> userOpt = userRepository.findByUsername(username);
+        if (userOpt.isEmpty()) {
+            userOpt = userRepository.findByEmail(username);
+            if (userOpt.isPresent()) {
+                username = userOpt.get().getUsername();
+            }
+        }
+
+        Authentication authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(username, loginRequest.getPassword()));
+
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+        String jwt = jwtUtils.generateJwtToken(authentication);
+
+        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("token", jwt);
+        response.put("id", userDetails.getId());
+        response.put("username", userDetails.getUsername());
+        response.put("email", userDetails.getEmail());
+        response.put("roles", userDetails.getAuthorities());
+        response.put("internId", userDetails.getInternId());
+
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<?> forgotPassword(@RequestBody ForgotPasswordRequest request) {
+        Optional<User> userOpt = userRepository.findByEmail(request.getEmail());
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Error: Email not found"));
+        }
+
+        User user = userOpt.get();
+        String token = UUID.randomUUID().toString();
+
+        // Delete existing token if any
+        tokenRepository.deleteByUserId(user.getId());
+
+        PasswordResetToken resetToken = new PasswordResetToken(user.getId(), token, LocalDateTime.now().plusHours(1));
+        tokenRepository.save(resetToken);
+
+        // Returning token in response for testing
+        return ResponseEntity.ok(Map.of(
+            "message", "Password reset token generated successfully.",
+            "token", token
+        ));
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@RequestBody ResetPasswordRequest request) {
+        Optional<PasswordResetToken> tokenOpt = tokenRepository.findByToken(request.getToken());
+        
+        if (tokenOpt.isEmpty() || tokenOpt.get().getExpiryDate().isBefore(LocalDateTime.now())) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Error: Token is invalid or expired."));
+        }
+
+        PasswordResetToken resetToken = tokenOpt.get();
+        Optional<User> userOpt = userRepository.findById(resetToken.getUserId());
+
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Error: User not found."));
+        }
+
+        User user = userOpt.get();
+        user.setPasswordHash(encoder.encode(request.getNewPassword()));
+        user.setUpdatedAt(LocalDateTime.now());
+        userRepository.save(user);
+
+        tokenRepository.delete(resetToken);
+
+        return ResponseEntity.ok(Map.of("message", "Password reset successfully."));
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<?> getCurrentUser() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated() || auth.getPrincipal().equals("anonymousUser")) {
+            return ResponseEntity.status(401).body(Map.of("message", "Unauthorized"));
+        }
+
+        UserDetailsImpl userDetails = (UserDetailsImpl) auth.getPrincipal();
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("id", userDetails.getId());
+        response.put("username", userDetails.getUsername());
+        response.put("email", userDetails.getEmail());
+        response.put("roles", userDetails.getAuthorities());
+        response.put("internId", userDetails.getInternId());
+
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/create-intern-user")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> createInternUser(@Valid @RequestBody CreateInternUserRequest request) {
+        if (userRepository.existsByUsername(request.getUsername())) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Error: Username is already taken!"));
+        }
+
+        if (userRepository.existsByEmail(request.getEmail())) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Error: Email is already in use!"));
+        }
+
+        User user = new User();
+        user.setUsername(request.getUsername());
+        user.setEmail(request.getEmail());
+        user.setPasswordHash(encoder.encode(request.getPassword()));
+        user.setRole("INTERN");
+        user.setInternId(request.getInternId());
+        
+        userRepository.save(user);
+
+        return ResponseEntity.ok(Map.of("message", "Intern user registered successfully!"));
+    }
+
+    @PostMapping("/register")
+    public ResponseEntity<?> registerUser(@Valid @RequestBody RegisterRequest request) {
+        if (userRepository.existsByUsername(request.getUsername())) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Error: Username is already taken!"));
+        }
+
+        if (userRepository.existsByEmail(request.getEmail())) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Error: Email is already in use!"));
+        }
+
+        User user = new User();
+        user.setUsername(request.getUsername());
+        user.setEmail(request.getEmail());
+        user.setPasswordHash(encoder.encode(request.getPassword()));
+
+        if ("INTERN".equalsIgnoreCase(request.getRole())) {
+            if (request.getInternNumber() == null || request.getInternNumber().isBlank()) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Error: Intern Number is required for Interns."));
+            }
+            java.util.List<Intern> interns = internRepository.findByInternNumber(request.getInternNumber());
+            if (interns.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Error: Invalid Intern Number. No matching intern found."));
+            }
+            user.setRole("INTERN");
+            user.setInternId(interns.get(0).getId());
+        } else {
+            user.setRole("ADMIN");
+        }
+
+        userRepository.save(user);
+
+        return ResponseEntity.ok(Map.of("message", "User registered successfully!"));
+    }
+
+    // DTOs
+    public static class LoginRequest {
+        @NotBlank
+        private String usernameOrEmail;
+
+        @NotBlank
+        private String password;
+
+        public String getUsernameOrEmail() { return usernameOrEmail; }
+        public void setUsernameOrEmail(String usernameOrEmail) { this.usernameOrEmail = usernameOrEmail; }
+        public String getPassword() { return password; }
+        public void setPassword(String password) { this.password = password; }
+    }
+
+    public static class ForgotPasswordRequest {
+        @NotBlank
+        private String email;
+
+        public String getEmail() { return email; }
+        public void setEmail(String email) { this.email = email; }
+    }
+
+    public static class ResetPasswordRequest {
+        @NotBlank
+        private String token;
+
+        @NotBlank
+        private String newPassword;
+
+        public String getToken() { return token; }
+        public void setToken(String token) { this.token = token; }
+        public String getNewPassword() { return newPassword; }
+        public void setNewPassword(String newPassword) { this.newPassword = newPassword; }
+    }
+
+    public static class CreateInternUserRequest {
+        @NotBlank
+        private String username;
+        @NotBlank
+        private String email;
+        @NotBlank
+        private String password;
+        @NotBlank
+        private String internId;
+
+        public String getUsername() { return username; }
+        public void setUsername(String username) { this.username = username; }
+        public String getEmail() { return email; }
+        public void setEmail(String email) { this.email = email; }
+        public String getPassword() { return password; }
+        public void setPassword(String password) { this.password = password; }
+        public String getInternId() { return internId; }
+        public void setInternId(String internId) { this.internId = internId; }
+    }
+
+    public static class RegisterRequest {
+        @NotBlank
+        private String username;
+        @NotBlank
+        private String email;
+        @NotBlank
+        private String password;
+        @NotBlank
+        private String role;
+        
+        private String internNumber;
+
+        public String getUsername() { return username; }
+        public void setUsername(String username) { this.username = username; }
+        public String getEmail() { return email; }
+        public void setEmail(String email) { this.email = email; }
+        public String getPassword() { return password; }
+        public void setPassword(String password) { this.password = password; }
+        public String getRole() { return role; }
+        public void setRole(String role) { this.role = role; }
+        public String getInternNumber() { return internNumber; }
+        public void setInternNumber(String internNumber) { this.internNumber = internNumber; }
+    }
+}

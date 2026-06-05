@@ -1,8 +1,11 @@
 package com.example.deploymentlab.config;
 
 import com.example.deploymentlab.model.Intern;
+import com.example.deploymentlab.model.User;
 import com.example.deploymentlab.repository.InternRepository;
+import com.example.deploymentlab.repository.UserRepository;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
@@ -11,13 +14,27 @@ import java.time.LocalDate;
 public class DataInitializer implements CommandLineRunner {
 
     private final InternRepository internRepository;
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public DataInitializer(InternRepository internRepository) {
+    public DataInitializer(InternRepository internRepository, UserRepository userRepository, PasswordEncoder passwordEncoder) {
         this.internRepository = internRepository;
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Override
     public void run(String... args) throws Exception {
+        if (!userRepository.existsByUsername("admin")) {
+            User admin = new User();
+            admin.setUsername("admin");
+            admin.setEmail("admin@internsync.local");
+            admin.setPasswordHash(passwordEncoder.encode("Admin@12345"));
+            admin.setRole("ADMIN");
+            userRepository.save(admin);
+            System.out.println("Default ADMIN user created.");
+        }
+
         if (internRepository.count() == 0) {
             Intern intern1 = new Intern();
             intern1.setInternNumber("3642");
