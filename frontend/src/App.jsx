@@ -8,16 +8,23 @@ import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 import ForgotPassword from './pages/auth/ForgotPassword';
 import ResetPassword from './pages/auth/ResetPassword';
+import AdminProfile from './pages/auth/AdminProfile';
 
 import Dashboard from './pages/Dashboard';
+import Directory from './pages/Directory';
 import InternList from './pages/interns/InternList';
 import InternForm from './pages/interns/InternForm';
+import EmployeeList from './pages/employees/EmployeeList';
+import EmployeeForm from './pages/employees/EmployeeForm';
 import ProjectList from './pages/projects/ProjectList';
 import ProjectForm from './pages/projects/ProjectForm';
 import ProjectView from './pages/projects/ProjectView';
 
 import MyProfile from './pages/interns/MyProfile';
 import MyProjects from './pages/interns/MyProjects';
+import InternDashboard from './pages/interns/InternDashboard';
+
+import NotFound from './pages/NotFound';
 
 function App() {
   return (
@@ -33,7 +40,12 @@ function App() {
             <Route path="/reset-password" element={<ResetPassword />} />
 
             {/* Admin Routes */}
+            <Route path="/admin/profile" element={<ProtectedRoute roles={['ADMIN']}><AdminProfile /></ProtectedRoute>} />
             <Route path="/" element={<ProtectedRoute roles={['ADMIN']}><Dashboard /></ProtectedRoute>} />
+            <Route path="/directory" element={<ProtectedRoute roles={['ADMIN']}><Directory /></ProtectedRoute>} />
+            <Route path="/employees" element={<ProtectedRoute roles={['ADMIN']}><EmployeeList /></ProtectedRoute>} />
+            <Route path="/employees/add" element={<ProtectedRoute roles={['ADMIN']}><EmployeeForm /></ProtectedRoute>} />
+            <Route path="/employees/edit/:id" element={<ProtectedRoute roles={['ADMIN']}><EmployeeForm /></ProtectedRoute>} />
             <Route path="/interns" element={<ProtectedRoute roles={['ADMIN']}><InternList /></ProtectedRoute>} />
             <Route path="/interns/add" element={<ProtectedRoute roles={['ADMIN']}><InternForm /></ProtectedRoute>} />
             <Route path="/interns/edit/:id" element={<ProtectedRoute roles={['ADMIN']}><InternForm /></ProtectedRoute>} />
@@ -43,11 +55,12 @@ function App() {
             <Route path="/projects/view/:id" element={<ProtectedRoute roles={['ADMIN']}><ProjectView /></ProtectedRoute>} />
 
             {/* Intern Routes */}
+            <Route path="/intern-dashboard" element={<ProtectedRoute roles={['INTERN']}><InternDashboard /></ProtectedRoute>} />
             <Route path="/my-profile" element={<ProtectedRoute roles={['INTERN']}><MyProfile /></ProtectedRoute>} />
             <Route path="/my-projects" element={<ProtectedRoute roles={['INTERN']}><MyProjects /></ProtectedRoute>} />
 
-            {/* Catch-all */}
-            <Route path="*" element={<Navigate to="/" replace />} />
+            {/* Catch-all 404 */}
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </main>
       </Router>

@@ -19,6 +19,7 @@ const ProjectForm = () => {
   });
 
   const [allInterns, setAllInterns] = useState([]);
+  const [supervisors, setSupervisors] = useState([]);
   const [assignedInternIds, setAssignedInternIds] = useState([]);
   const [error, setError] = useState('');
 
@@ -26,6 +27,10 @@ const ProjectForm = () => {
     api.get('/interns')
       .then(res => setAllInterns(res.data))
       .catch(err => console.error("Error fetching interns", err));
+
+    api.get('/employees/supervisors')
+      .then(res => setSupervisors(res.data))
+      .catch(err => console.error("Error fetching supervisors", err));
 
     if (isEdit) {
       api.get(`/projects/${id}`)
@@ -118,7 +123,16 @@ const ProjectForm = () => {
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-bold text-gray-700 ml-1">Supervisor *</label>
-                <input type="text" className="form-input" name="supervisor" value={formData.supervisor || ''} onChange={handleChange} required placeholder="John Doe" />
+                <select className="form-select" name="supervisor" value={formData.supervisor} onChange={handleChange} required>
+                  <option value="" disabled>Select Supervisor</option>
+                  {supervisors.map(sup => (
+                    <option key={sup.id} value={sup.fullName}>{sup.fullName}</option>
+                  ))}
+                  {/* Fallback for existing supervisors not in the employee list */}
+                  {formData.supervisor && !supervisors.find(s => s.fullName === formData.supervisor) && (
+                    <option value={formData.supervisor}>{formData.supervisor}</option>
+                  )}
+                </select>
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-bold text-gray-700 ml-1">Department *</label>

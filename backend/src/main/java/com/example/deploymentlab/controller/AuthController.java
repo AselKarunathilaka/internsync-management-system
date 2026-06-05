@@ -144,6 +144,43 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
+    @PutMapping("/profile")
+    public ResponseEntity<?> updateProfile(@Valid @RequestBody UpdateProfileRequest request) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated() || auth.getPrincipal().equals("anonymousUser")) {
+            return ResponseEntity.status(401).body(Map.of("message", "Unauthorized"));
+        }
+
+        UserDetailsImpl userDetails = (UserDetailsImpl) auth.getPrincipal();
+        Optional<User> userOpt = userRepository.findById(userDetails.getId());
+        
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.status(404).body(Map.of("message", "User not found"));
+        }
+
+        User user = userOpt.get();
+
+        if (!user.getUsername().equals(request.getUsername()) && userRepository.existsByUsername(request.getUsername())) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Error: Username is already taken!"));
+        }
+
+        if (!user.getEmail().equals(request.getEmail()) && userRepository.existsByEmail(request.getEmail())) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Error: Email is already in use!"));
+        }
+
+        user.setUsername(request.getUsername());
+        user.setEmail(request.getEmail());
+
+        if (request.getPassword() != null && !request.getPassword().isBlank()) {
+            user.setPasswordHash(encoder.encode(request.getPassword()));
+        }
+
+        user.setUpdatedAt(LocalDateTime.now());
+        userRepository.save(user);
+
+        return ResponseEntity.ok(Map.of("message", "Profile updated successfully"));
+    }
+
     @PostMapping("/create-intern-user")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> createInternUser(@Valid @RequestBody CreateInternUserRequest request) {
@@ -278,5 +315,21 @@ public class AuthController {
         public void setRole(String role) { this.role = role; }
         public String getInternNumber() { return internNumber; }
         public void setInternNumber(String internNumber) { this.internNumber = internNumber; }
+    }
+
+    public static class UpdateProfileRequest {
+        @NotBlank
+        private String username;
+        @NotBlank
+        private String email;
+        
+        private String password;
+
+        public String getUsername() { return username; }
+        public void setUsername(String username) { this.username = username; }
+        public String getEmail() { return email; }
+        public void setEmail(String email) { this.email = email; }
+        public String getPassword() { return password; }
+        public void setPassword(String password) { this.password = password; }
     }
 }

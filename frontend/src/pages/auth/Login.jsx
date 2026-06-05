@@ -24,7 +24,7 @@ const Login = () => {
       if (roles.some(r => r.authority === 'ROLE_ADMIN')) {
         navigate('/');
       } else {
-        navigate('/my-profile');
+        navigate('/intern-dashboard');
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Invalid username or password');

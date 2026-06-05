@@ -41,8 +41,8 @@
     @apply bg-white/40 border border-indigo-500/50 text-indigo-700 hover:bg-indigo-500/10 hover:border-indigo-500/80 focus:ring-indigo-300;
   }
 
-  .form-input {
-    @apply w-full px-5 py-4 rounded-2xl border border-white/60 bg-white/40 backdrop-blur-xl focus:border-indigo-400 focus:ring-4 focus:ring-indigo-400/20 focus:bg-white/60 transition-all duration-500 outline-none shadow-inner text-slate-800 placeholder-slate-500;
+  .form-input, .form-select {
+    @apply w-full px-5 py-4 rounded-2xl border border-white/60 bg-white/40 backdrop-blur-xl focus:border-indigo-400 focus:ring-4 focus:ring-indigo-400/20 focus:bg-white/60 transition-all duration-500 outline-none shadow-inner text-slate-800 placeholder-slate-500 cursor-pointer;
   }
 }
 

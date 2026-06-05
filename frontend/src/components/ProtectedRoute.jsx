@@ -16,7 +16,7 @@ const ProtectedRoute = ({ children, roles }) => {
     if (!roles.includes(mappedRole)) {
       // Redirect based on role if unauthorized
       if (mappedRole === 'INTERN') {
-        return <Navigate to="/my-profile" replace />;
+        return <Navigate to="/intern-dashboard" replace />;
       }
       return <Navigate to="/" replace />;
     }
