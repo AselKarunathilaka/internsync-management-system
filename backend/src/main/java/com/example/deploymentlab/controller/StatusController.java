@@ -27,7 +27,7 @@ public class StatusController {
     @GetMapping
     public Map<String, String> getStatus() {
         Map<String, String> status = new HashMap<>();
-        status.put("app", "Server Deployment Lab App");
+        status.put("app", "InternSync Backend");
         status.put("backend", "running");
         status.put("database", checkDatabaseConnection());
         status.put("version", appVersion);
@@ -38,7 +38,11 @@ public class StatusController {
     @GetMapping("/db")
     public Map<String, String> getDbStatus() {
         Map<String, String> dbStatus = new HashMap<>();
-        dbStatus.put("database", checkDatabaseConnection());
+        String dbConn = checkDatabaseConnection();
+        dbStatus.put("database", dbConn);
+        if (!"connected".equals(dbConn)) {
+            dbStatus.put("error", "Database connection failed");
+        }
         dbStatus.put("timestamp", LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
         return dbStatus;
     }
@@ -55,7 +59,7 @@ public class StatusController {
             mongoTemplate.executeCommand("{ ping: 1 }");
             return "connected";
         } catch (Exception e) {
-            return "disconnected (" + e.getMessage() + ")";
+            return "disconnected";
         }
     }
 }

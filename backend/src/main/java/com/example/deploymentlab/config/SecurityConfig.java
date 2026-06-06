@@ -61,9 +61,16 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> 
-                auth.requestMatchers("/api/auth/**").permitAll()
+                auth.requestMatchers(
+                        "/",
+                        "/api/status",
+                        "/api/status/**",
+                        "/actuator/health",
+                        "/api/auth/login",
+                        "/api/auth/forgot-password",
+                        "/api/auth/reset-password"
+                    ).permitAll()
                     .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/departments").permitAll()
-                    .requestMatchers("/api/status").permitAll()
                     .anyRequest().authenticated()
             );
 
