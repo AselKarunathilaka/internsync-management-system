@@ -26,13 +26,13 @@ public class InternController {
     }
 
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPLOYEE')")
     public List<Intern> getAllInterns() {
         return internRepository.findAll();
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('INTERN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPLOYEE', 'INTERN')")
     public ResponseEntity<Intern> getInternById(@PathVariable String id) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         UserDetailsImpl userDetails = (UserDetailsImpl) auth.getPrincipal();

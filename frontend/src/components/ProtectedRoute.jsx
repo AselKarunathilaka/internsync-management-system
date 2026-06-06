@@ -18,6 +18,9 @@ const ProtectedRoute = ({ children, roles }) => {
       if (mappedRole === 'INTERN') {
         return <Navigate to="/intern-dashboard" replace />;
       }
+      if (mappedRole === 'EMPLOYEE') {
+        return <Navigate to="/employee-dashboard" replace />;
+      }
       return <Navigate to="/" replace />;
     }
   }

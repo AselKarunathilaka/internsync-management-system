@@ -24,6 +24,7 @@ public class User {
     private String role; // ADMIN or INTERN
 
     private String internId; // Only if role is INTERN
+    private String employeeId; // Only if role is EMPLOYEE
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -50,6 +51,9 @@ public class User {
 
     public String getInternId() { return internId; }
     public void setInternId(String internId) { this.internId = internId; }
+
+    public String getEmployeeId() { return employeeId; }
+    public void setEmployeeId(String employeeId) { this.employeeId = employeeId; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

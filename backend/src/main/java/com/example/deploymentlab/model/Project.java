@@ -37,6 +37,7 @@ public class Project {
     private LocalDate endDate;
 
     private List<String> assignedInternIds = new ArrayList<>();
+    private List<String> assignedEmployeeIds = new ArrayList<>();
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -75,6 +76,9 @@ public class Project {
 
     public List<String> getAssignedInternIds() { return assignedInternIds; }
     public void setAssignedInternIds(List<String> assignedInternIds) { this.assignedInternIds = assignedInternIds; }
+
+    public List<String> getAssignedEmployeeIds() { return assignedEmployeeIds; }
+    public void setAssignedEmployeeIds(List<String> assignedEmployeeIds) { this.assignedEmployeeIds = assignedEmployeeIds; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

@@ -3,8 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../api';
 
 const SPECIALIZATIONS = [
-  "AI", "BA", "C#", "CICD", "Cloud", "Flutter", 
-  "FullStack", "JAVA", "MERN", "PHP", "PM", "Other"
+  'AI', 'BA', 'C#', 'CICD', 'Cloud', 'Finance', 'Flutter', 'FullStack', 
+  'IOT', 'JAVA', 'Logistics', 'Marketing', 'MERN', 'PHP', 'PM', 
+  'Python', 'QA', 'ReactJS', 'UIUX'
 ];
 
 const InternForm = () => {

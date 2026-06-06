@@ -2,24 +2,32 @@ package com.example.deploymentlab.controller;
 
 import com.example.deploymentlab.model.Employee;
 import com.example.deploymentlab.repository.EmployeeRepository;
+import com.example.deploymentlab.model.Project;
+import com.example.deploymentlab.repository.ProjectRepository;
+import com.example.deploymentlab.config.UserDetailsImpl;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/employees")
 public class EmployeeController {
 
     private final EmployeeRepository employeeRepository;
+    private final ProjectRepository projectRepository;
 
-    public EmployeeController(EmployeeRepository employeeRepository) {
+    public EmployeeController(EmployeeRepository employeeRepository, ProjectRepository projectRepository) {
         this.employeeRepository = employeeRepository;
+        this.projectRepository = projectRepository;
     }
 
     @GetMapping
@@ -37,7 +45,16 @@ public class EmployeeController {
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Employee> createEmployee(@Valid @RequestBody Employee employee) {
+    public ResponseEntity<?> createEmployee(@Valid @RequestBody Employee employee) {
+        // Enforce specialization rules
+        if (!employee.getDesignation().equals("General Manager") && !employee.getDesignation().equals("Deputy General Manager")) {
+            if (employee.getSpecialization() == null || employee.getSpecialization().trim().isEmpty()) {
+                return ResponseEntity.badRequest().body("Specialization is required for this designation.");
+            }
+        } else {
+            employee.setSpecialization(null); // Clear it
+        }
+        
         employee.setCreatedAt(LocalDateTime.now());
         employee.setUpdatedAt(LocalDateTime.now());
         Employee savedEmployee = employeeRepository.save(employee);
@@ -45,7 +62,7 @@ public class EmployeeController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('EMPLOYEE')")
     public ResponseEntity<Employee> getEmployeeById(@PathVariable String id) {
         Optional<Employee> employee = employeeRepository.findById(id);
         return employee.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
@@ -53,7 +70,7 @@ public class EmployeeController {
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Employee> updateEmployee(@PathVariable String id, @Valid @RequestBody Employee employeeDetails) {
+    public ResponseEntity<?> updateEmployee(@PathVariable String id, @Valid @RequestBody Employee employeeDetails) {
         Optional<Employee> optionalEmployee = employeeRepository.findById(id);
         if (optionalEmployee.isPresent()) {
             Employee employee = optionalEmployee.get();
@@ -61,6 +78,18 @@ public class EmployeeController {
             employee.setEmail(employeeDetails.getEmail());
             employee.setDepartment(employeeDetails.getDepartment());
             employee.setDesignation(employeeDetails.getDesignation());
+            employee.setPhoneNumber(employeeDetails.getPhoneNumber());
+            
+            // Enforce specialization rules
+            if (!employeeDetails.getDesignation().equals("General Manager") && !employeeDetails.getDesignation().equals("Deputy General Manager")) {
+                if (employeeDetails.getSpecialization() == null || employeeDetails.getSpecialization().trim().isEmpty()) {
+                    return ResponseEntity.badRequest().body("Specialization is required for this designation.");
+                }
+                employee.setSpecialization(employeeDetails.getSpecialization());
+            } else {
+                employee.setSpecialization(null);
+            }
+
             employee.setUpdatedAt(LocalDateTime.now());
             
             return ResponseEntity.ok(employeeRepository.save(employee));
@@ -78,5 +107,60 @@ public class EmployeeController {
         } else {
             return ResponseEntity.notFound().build();
         }
+    }
+
+    @GetMapping("/me")
+    @PreAuthorize("hasRole('EMPLOYEE')")
+    public ResponseEntity<?> getMyProfile() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) {
+            return ResponseEntity.status(401).body("Unauthorized");
+        }
+
+        UserDetailsImpl userDetails = (UserDetailsImpl) auth.getPrincipal();
+        String employeeId = userDetails.getEmployeeId();
+
+        if (employeeId == null) {
+            return ResponseEntity.badRequest().body("User is not linked to an employee profile.");
+        }
+
+        Optional<Employee> employeeOpt = employeeRepository.findById(employeeId);
+        if (employeeOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        return ResponseEntity.ok(employeeOpt.get());
+    }
+
+    @GetMapping("/me/projects")
+    @PreAuthorize("hasRole('EMPLOYEE')")
+    public ResponseEntity<?> getMyProjects() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) {
+            return ResponseEntity.status(401).body("Unauthorized");
+        }
+
+        UserDetailsImpl userDetails = (UserDetailsImpl) auth.getPrincipal();
+        String employeeId = userDetails.getEmployeeId();
+
+        if (employeeId == null) {
+            return ResponseEntity.badRequest().body("User is not linked to an employee profile.");
+        }
+
+        List<Project> projects = projectRepository.findAll().stream()
+                .filter(p -> p.getAssignedEmployeeIds() != null && p.getAssignedEmployeeIds().contains(employeeId))
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(projects);
+    }
+
+    @GetMapping("/{id}/projects")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('EMPLOYEE')")
+    public ResponseEntity<?> getEmployeeProjects(@PathVariable String id) {
+        List<Project> projects = projectRepository.findAll().stream()
+                .filter(p -> p.getAssignedEmployeeIds() != null && p.getAssignedEmployeeIds().contains(id))
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(projects);
     }
 }

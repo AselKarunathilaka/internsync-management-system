@@ -1,15 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { AuthContext } from '../../context/AuthContext';
 import api from '../../api';
 
 const ProjectView = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useContext(AuthContext);
   
   const [project, setProject] = useState(null);
   const [assignedInterns, setAssignedInterns] = useState([]);
+  const [assignedEmployees, setAssignedEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [employeeProfile, setEmployeeProfile] = useState(null);
+
+  const isAdmin = user?.roles?.some(r => r.authority === 'ROLE_ADMIN');
+  const isEmployee = user?.roles?.some(r => r.authority === 'ROLE_EMPLOYEE');
 
   useEffect(() => {
     const fetchProjectDetails = async () => {
@@ -19,11 +26,23 @@ const ProjectView = () => {
 
         const internsRes = await api.get('/interns');
         const allInterns = internsRes.data;
-        
-        const assigned = allInterns.filter(intern => 
+        const assignedInts = allInterns.filter(intern => 
           projRes.data.assignedInternIds && projRes.data.assignedInternIds.includes(intern.id)
         );
-        setAssignedInterns(assigned);
+        setAssignedInterns(assignedInts);
+
+        const empsRes = await api.get('/employees');
+        const allEmps = empsRes.data;
+        const assignedEmps = allEmps.filter(emp => 
+          projRes.data.assignedEmployeeIds && projRes.data.assignedEmployeeIds.includes(emp.id)
+        );
+        setAssignedEmployees(assignedEmps);
+
+        if (isEmployee) {
+          const empRes = await api.get('/employees/me');
+          setEmployeeProfile(empRes.data);
+        }
+
         setLoading(false);
       } catch (err) {
         console.error("Error fetching project details", err);
@@ -33,7 +52,18 @@ const ProjectView = () => {
     };
 
     fetchProjectDetails();
-  }, [id]);
+  }, [id, isEmployee]);
+
+  const canManageProject = () => {
+    if (!project) return false;
+    if (isAdmin) return true;
+    if (isEmployee && employeeProfile) {
+      const { designation, department } = employeeProfile;
+      const isGmOrDgm = designation === 'General Manager' || designation === 'Deputy General Manager';
+      return isGmOrDgm && department === project.department;
+    }
+    return false;
+  };
 
   if (loading) {
     return (
@@ -53,7 +83,7 @@ const ProjectView = () => {
         <div className="blob bg-indigo-300 w-[30rem] h-[30rem] top-[10%] left-[20%]" style={{ animationDelay: '0s', animationDuration: '20s' }}></div>
       </div>
 
-      <div className="animate-fade-in space-y-6 max-w-5xl mx-auto">
+      <div className="animate-fade-in space-y-6 max-w-5xl mx-auto pb-20">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <button onClick={() => navigate('/projects')} className="bg-white/40 hover:bg-white/60 text-slate-800 p-3 rounded-full backdrop-blur-xl transition-all shadow-md">
@@ -63,12 +93,14 @@ const ProjectView = () => {
             </button>
             <h2 className="text-4xl font-extrabold text-slate-800 drop-shadow-sm tracking-tight">{project.projectName}</h2>
           </div>
-          <Link to={`/projects/edit/${project.id}`} className="btn btn-primary shadow-lg flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-            </svg>
-            Edit Project
-          </Link>
+          {canManageProject() && (
+            <Link to={`/projects/edit/${project.id}`} className="btn btn-primary shadow-lg flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+              </svg>
+              Edit Project
+            </Link>
+          )}
         </div>
 
         <div className="glass-card animate-slide-up">
@@ -111,47 +143,80 @@ const ProjectView = () => {
           </div>
         </div>
 
-        <div className="glass-card animate-slide-up" style={{ animationDelay: '100ms' }}>
-          <h3 className="text-xl font-bold text-gray-800 border-b pb-2 mb-4 flex justify-between items-center">
-            <span>Project Team</span>
-            <span className="bg-indigo-100 text-indigo-700 text-sm py-1 px-3 rounded-full">{assignedInterns.length} Members</span>
-          </h3>
-          
-          <div className="overflow-x-auto rounded-xl border border-gray-100 mt-4">
-            <table className="w-full text-left border-collapse bg-white/50">
-              <thead>
-                <tr className="bg-gray-100/80 text-gray-600 text-xs uppercase tracking-wider">
-                  <th className="p-4 font-semibold">Intern #</th>
-                  <th className="p-4 font-semibold">Name</th>
-                  <th className="p-4 font-semibold">Specialization</th>
-                  <th className="p-4 font-semibold">University</th>
-                  <th className="p-4 font-semibold text-center">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {assignedInterns.length === 0 ? (
-                  <tr>
-                    <td colSpan="5" className="text-center p-8 text-gray-500 italic">No interns assigned to this project yet.</td>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="glass-card animate-slide-up" style={{ animationDelay: '100ms' }}>
+            <h3 className="text-xl font-bold text-indigo-900 border-b border-indigo-100 pb-2 mb-4 flex justify-between items-center">
+              <span>Assigned Employees</span>
+              <span className="bg-indigo-100 text-indigo-700 text-sm py-1 px-3 rounded-full">{assignedEmployees.length} Members</span>
+            </h3>
+            
+            <div className="overflow-x-auto rounded-xl border border-gray-100 mt-4">
+              <table className="w-full text-left border-collapse bg-white/50">
+                <thead>
+                  <tr className="bg-indigo-50/80 text-indigo-800 text-xs uppercase tracking-wider">
+                    <th className="p-4 font-semibold">Name</th>
+                    <th className="p-4 font-semibold">Designation</th>
+                    <th className="p-4 font-semibold text-center">Action</th>
                   </tr>
-                ) : (
-                  assignedInterns.map(intern => (
-                    <tr key={intern.id} className="hover:bg-indigo-50/50 transition-colors">
-                      <td className="p-4 font-bold text-gray-700">{intern.internNumber}</td>
-                      <td className="p-4 font-medium text-gray-800">{intern.fullName}</td>
-                      <td className="p-4 text-gray-600">
-                        <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-semibold shadow-sm">{intern.specialization || 'N/A'}</span>
-                      </td>
-                      <td className="p-4 text-gray-600">{intern.university || 'N/A'}</td>
-                      <td className="p-4 text-center">
-                        <Link to={`/interns/view/${intern.id}`} className="text-primary hover:text-indigo-700 text-sm font-bold hover:underline">View Profile</Link>
-                      </td>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {assignedEmployees.length === 0 ? (
+                    <tr>
+                      <td colSpan="3" className="text-center p-8 text-gray-500 italic">No employees assigned to this project.</td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : (
+                    assignedEmployees.map(emp => (
+                      <tr key={emp.id} className="hover:bg-indigo-50/50 transition-colors">
+                        <td className="p-4 font-medium text-gray-800">{emp.fullName}</td>
+                        <td className="p-4 text-gray-600">{emp.designation}</td>
+                        <td className="p-4 text-center">
+                          <Link to={`/employees/view/${emp.id}`} className="text-primary hover:text-indigo-700 text-sm font-bold hover:underline">View</Link>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="glass-card animate-slide-up" style={{ animationDelay: '200ms' }}>
+            <h3 className="text-xl font-bold text-teal-900 border-b border-teal-100 pb-2 mb-4 flex justify-between items-center">
+              <span>Assigned Interns</span>
+              <span className="bg-teal-100 text-teal-700 text-sm py-1 px-3 rounded-full">{assignedInterns.length} Members</span>
+            </h3>
+            
+            <div className="overflow-x-auto rounded-xl border border-gray-100 mt-4">
+              <table className="w-full text-left border-collapse bg-white/50">
+                <thead>
+                  <tr className="bg-teal-50/80 text-teal-800 text-xs uppercase tracking-wider">
+                    <th className="p-4 font-semibold">Intern #</th>
+                    <th className="p-4 font-semibold">Name</th>
+                    <th className="p-4 font-semibold text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {assignedInterns.length === 0 ? (
+                    <tr>
+                      <td colSpan="3" className="text-center p-8 text-gray-500 italic">No interns assigned to this project.</td>
+                    </tr>
+                  ) : (
+                    assignedInterns.map(intern => (
+                      <tr key={intern.id} className="hover:bg-teal-50/50 transition-colors">
+                        <td className="p-4 font-bold text-gray-700">{intern.internNumber}</td>
+                        <td className="p-4 font-medium text-gray-800">{intern.fullName}</td>
+                        <td className="p-4 text-center">
+                          <Link to={`/interns/view/${intern.id}`} className="text-teal-600 hover:text-teal-800 text-sm font-bold hover:underline">View</Link>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
+
       </div>
     </>
   );

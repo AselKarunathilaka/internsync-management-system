@@ -42,16 +42,22 @@ const Directory = () => {
     directoryData[emp.department].employees.push(emp);
   });
 
-  interns.forEach(intern => {
-    const dept = intern.department || 'Unassigned';
-    addDept(dept);
-    directoryData[dept].interns.push(intern);
-  });
-
+  const assignedInternIds = new Set();
   projects.forEach(project => {
     const dept = project.department || 'Unassigned';
     addDept(dept);
     directoryData[dept].projects.push(project);
+    if (project.assignedInternIds) {
+      project.assignedInternIds.forEach(id => assignedInternIds.add(id));
+    }
+  });
+
+  interns.forEach(intern => {
+    if (assignedInternIds.has(intern.id)) {
+      const dept = intern.department || 'Unassigned';
+      addDept(dept);
+      directoryData[dept].interns.push(intern);
+    }
   });
 
   if (loading) {

@@ -5,6 +5,8 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Document(collection = "employees")
 public class Employee {
@@ -23,6 +25,11 @@ public class Employee {
 
     @NotBlank(message = "Designation is required")
     private String designation;
+
+    private String phoneNumber;
+    private String specialization;
+    private List<String> assignedProjectIds = new ArrayList<>();
+    private String userId;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -46,6 +53,18 @@ public class Employee {
 
     public String getDesignation() { return designation; }
     public void setDesignation(String designation) { this.designation = designation; }
+
+    public String getPhoneNumber() { return phoneNumber; }
+    public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
+
+    public String getSpecialization() { return specialization; }
+    public void setSpecialization(String specialization) { this.specialization = specialization; }
+
+    public List<String> getAssignedProjectIds() { return assignedProjectIds; }
+    public void setAssignedProjectIds(List<String> assignedProjectIds) { this.assignedProjectIds = assignedProjectIds; }
+
+    public String getUserId() { return userId; }
+    public void setUserId(String userId) { this.userId = userId; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

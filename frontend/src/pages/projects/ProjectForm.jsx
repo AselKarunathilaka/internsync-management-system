@@ -19,18 +19,30 @@ const ProjectForm = () => {
   });
 
   const [allInterns, setAllInterns] = useState([]);
-  const [supervisors, setSupervisors] = useState([]);
   const [assignedInternIds, setAssignedInternIds] = useState([]);
+  const [assignedEmployeeIds, setAssignedEmployeeIds] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const [error, setError] = useState('');
 
   useEffect(() => {
+    const fetchSelectData = async () => {
+      try {
+        const [empRes, deptRes] = await Promise.all([
+          api.get('/employees'),
+          api.get('/departments')
+        ]);
+        setEmployees(empRes.data);
+        setDepartments(deptRes.data);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchSelectData();
+
     api.get('/interns')
       .then(res => setAllInterns(res.data))
       .catch(err => console.error("Error fetching interns", err));
-
-    api.get('/employees/supervisors')
-      .then(res => setSupervisors(res.data))
-      .catch(err => console.error("Error fetching supervisors", err));
 
     if (isEdit) {
       api.get(`/projects/${id}`)
@@ -40,6 +52,7 @@ const ProjectForm = () => {
           if (data.endDate) data.endDate = data.endDate.split('T')[0];
           setFormData(data);
           setAssignedInternIds(data.assignedInternIds || []);
+          setAssignedEmployeeIds(data.assignedEmployeeIds || []);
         })
         .catch(err => console.error("Error fetching project details", err));
     }
@@ -51,7 +64,7 @@ const ProjectForm = () => {
 
   const handleInternAssignment = async (internId, isAssigning) => {
     if (!isEdit) {
-      alert("Please save the project first before assigning interns.");
+      alert("Please save the project first before assigning team members.");
       return;
     }
     try {
@@ -65,6 +78,25 @@ const ProjectForm = () => {
     } catch (err) {
       console.error("Error assigning/removing intern", err);
       alert("Failed to update intern assignment");
+    }
+  };
+
+  const handleEmployeeAssignment = async (employeeId, isAssigning) => {
+    if (!isEdit) {
+      alert("Please save the project first before assigning team members.");
+      return;
+    }
+    try {
+      if (isAssigning) {
+        await api.post(`/projects/${id}/assign-employees`, { employeeIds: [employeeId] });
+        setAssignedEmployeeIds([...assignedEmployeeIds, employeeId]);
+      } else {
+        await api.delete(`/projects/${id}/remove-employee/${employeeId}`);
+        setAssignedEmployeeIds(assignedEmployeeIds.filter(i => i !== employeeId));
+      }
+    } catch (err) {
+      console.error("Error assigning/removing employee", err);
+      alert(err.response?.data?.message || "Failed to update employee assignment");
     }
   };
 
@@ -87,13 +119,17 @@ const ProjectForm = () => {
     }
   };
 
+  const eligibleEmployees = employees.filter(emp => 
+    !['General Manager', 'Deputy General Manager'].includes(emp.designation)
+  );
+
   return (
     <>
       <div className="fixed inset-0 z-[-1] overflow-hidden pointer-events-none">
         <div className="blob bg-amber-300 w-[30rem] h-[30rem] top-[20%] left-[30%]" style={{ animationDelay: '0s', animationDuration: '20s' }}></div>
       </div>
 
-      <div className="animate-fade-in space-y-6">
+      <div className="animate-fade-in space-y-6 pb-20">
         <div className="flex items-center gap-4">
           <button onClick={() => navigate('/projects')} className="bg-white/40 hover:bg-white/60 text-slate-800 p-3 rounded-full backdrop-blur-xl transition-all shadow-md">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -125,18 +161,20 @@ const ProjectForm = () => {
                 <label className="text-sm font-bold text-gray-700 ml-1">Supervisor *</label>
                 <select className="form-select" name="supervisor" value={formData.supervisor} onChange={handleChange} required>
                   <option value="" disabled>Select Supervisor</option>
-                  {supervisors.map(sup => (
-                    <option key={sup.id} value={sup.fullName}>{sup.fullName}</option>
+                  {eligibleEmployees.map(sup => (
+                    <option key={sup.id} value={sup.fullName}>{sup.fullName} ({sup.designation})</option>
                   ))}
-                  {/* Fallback for existing supervisors not in the employee list */}
-                  {formData.supervisor && !supervisors.find(s => s.fullName === formData.supervisor) && (
+                  {formData.supervisor && !eligibleEmployees.find(s => s.fullName === formData.supervisor) && (
                     <option value={formData.supervisor}>{formData.supervisor}</option>
                   )}
                 </select>
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-gray-700 ml-1">Department *</label>
-                <input type="text" className="form-input" name="department" value={formData.department} onChange={handleChange} required placeholder="Digital Platforms" />
+              <div>
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Department *</label>
+                <select name="department" value={formData.department} onChange={handleChange} className="form-select mt-1 shadow-sm" required>
+                  <option value="" disabled>Select Department</option>
+                  {departments.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
+                </select>
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-bold text-gray-700 ml-1">Status *</label>
@@ -158,56 +196,101 @@ const ProjectForm = () => {
             </div>
           </div>
 
-          {isEdit && (
-            <div className="glass-card max-w-4xl mx-auto animate-slide-up">
-              <h3 className="text-xl font-bold text-gray-800 border-b pb-2 mb-4">Assigned Interns</h3>
-              <div className="space-y-4">
-                <div className="overflow-x-auto rounded-xl border border-gray-100">
-                  <table className="w-full text-left border-collapse bg-white/50">
-                    <thead>
-                      <tr className="bg-gray-100/80 text-gray-600 text-xs uppercase tracking-wider">
-                        <th className="p-4 font-semibold">Intern Name</th>
-                        <th className="p-4 font-semibold">Specialization</th>
-                        <th className="p-4 font-semibold text-right">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {allInterns.map(intern => {
-                        const isAssigned = assignedInternIds.includes(intern.id);
-                        return (
-                          <tr key={intern.id} className="hover:bg-indigo-50/50 transition-colors">
-                            <td className="p-4 font-medium text-gray-700">{intern.fullName} ({intern.internNumber})</td>
-                            <td className="p-4 text-gray-600">{intern.specialization}</td>
-                            <td className="p-4 text-right">
-                              {isAssigned ? (
-                                <button type="button" onClick={() => handleInternAssignment(intern.id, false)} className="btn btn-outline text-danger border-danger hover:bg-danger hover:text-white text-xs px-3 py-1">
-                                  Remove
-                                </button>
-                              ) : (
-                                <button type="button" onClick={() => handleInternAssignment(intern.id, true)} className="btn btn-outline text-primary border-primary hover:bg-primary hover:text-white text-xs px-3 py-1">
-                                  Assign
-                                </button>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
-
           <div className="max-w-4xl mx-auto flex gap-4 pt-4">
             <button type="submit" className="btn btn-success flex-1 text-lg py-3 shadow-lg flex justify-center items-center gap-2">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
               </svg>
-              {isEdit ? 'Save Project' : 'Create & Continue to Assignment'}
+              {isEdit ? 'Save Project Details' : 'Create & Continue to Assignment'}
             </button>
           </div>
         </form>
+
+        {isEdit && (
+          <div className="space-y-8 mt-12 pt-8 border-t border-gray-200/50 max-w-4xl mx-auto">
+            
+            <div className="glass-card animate-slide-up">
+              <h3 className="text-xl font-bold text-indigo-900 border-b border-indigo-100 pb-2 mb-4">Assign Employees</h3>
+              <div className="overflow-x-auto rounded-xl border border-gray-100">
+                <table className="w-full text-left border-collapse bg-white/50">
+                  <thead>
+                    <tr className="bg-indigo-50/80 text-indigo-800 text-xs uppercase tracking-wider">
+                      <th className="p-4 font-semibold">Employee Name</th>
+                      <th className="p-4 font-semibold">Designation</th>
+                      <th className="p-4 font-semibold text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {eligibleEmployees.map(emp => {
+                      const isAssigned = assignedEmployeeIds.includes(emp.id);
+                      return (
+                        <tr key={emp.id} className="hover:bg-indigo-50/50 transition-colors">
+                          <td className="p-4 font-medium text-gray-700">{emp.fullName}</td>
+                          <td className="p-4 text-gray-600">{emp.designation}</td>
+                          <td className="p-4 text-right">
+                            {isAssigned ? (
+                              <button type="button" onClick={() => handleEmployeeAssignment(emp.id, false)} className="btn btn-outline text-danger border-danger hover:bg-danger hover:text-white text-xs px-3 py-1">
+                                Remove
+                              </button>
+                            ) : (
+                              <button type="button" onClick={() => handleEmployeeAssignment(emp.id, true)} className="btn btn-outline text-indigo-600 border-indigo-600 hover:bg-indigo-600 hover:text-white text-xs px-3 py-1">
+                                Assign
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {eligibleEmployees.length === 0 && (
+                      <tr>
+                        <td colSpan="3" className="p-8 text-center text-gray-500 italic">No eligible employees found.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="glass-card animate-slide-up">
+              <h3 className="text-xl font-bold text-teal-900 border-b border-teal-100 pb-2 mb-4">Assign Interns</h3>
+              <div className="overflow-x-auto rounded-xl border border-gray-100">
+                <table className="w-full text-left border-collapse bg-white/50">
+                  <thead>
+                    <tr className="bg-teal-50/80 text-teal-800 text-xs uppercase tracking-wider">
+                      <th className="p-4 font-semibold">Intern Name</th>
+                      <th className="p-4 font-semibold">Specialization</th>
+                      <th className="p-4 font-semibold text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {allInterns.map(intern => {
+                      const isAssigned = assignedInternIds.includes(intern.id);
+                      return (
+                        <tr key={intern.id} className="hover:bg-teal-50/50 transition-colors">
+                          <td className="p-4 font-medium text-gray-700">{intern.fullName} ({intern.internNumber})</td>
+                          <td className="p-4 text-gray-600">{intern.specialization}</td>
+                          <td className="p-4 text-right">
+                            {isAssigned ? (
+                              <button type="button" onClick={() => handleInternAssignment(intern.id, false)} className="btn btn-outline text-danger border-danger hover:bg-danger hover:text-white text-xs px-3 py-1">
+                                Remove
+                              </button>
+                            ) : (
+                              <button type="button" onClick={() => handleInternAssignment(intern.id, true)} className="btn btn-outline text-teal-600 border-teal-600 hover:bg-teal-600 hover:text-white text-xs px-3 py-1">
+                                Assign
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+        )}
+
       </div>
     </>
   );

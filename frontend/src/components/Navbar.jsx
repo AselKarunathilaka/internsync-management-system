@@ -13,6 +13,7 @@ const Navbar = () => {
 
   const isAdmin = user?.roles?.some(r => r.authority === 'ROLE_ADMIN');
   const isIntern = user?.roles?.some(r => r.authority === 'ROLE_INTERN');
+  const isEmployee = user?.roles?.some(r => r.authority === 'ROLE_EMPLOYEE');
 
   return (
     <header className="glass-header">
@@ -33,6 +34,7 @@ const Navbar = () => {
                 <>
                   <Link to="/" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">Dashboard</Link>
                   <Link to="/directory" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">Org Directory</Link>
+                  <Link to="/departments" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">Departments</Link>
                   <Link to="/employees" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">Employees</Link>
                   <Link to="/interns" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">Interns</Link>
                   <Link to="/projects" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">Projects</Link>
@@ -44,6 +46,12 @@ const Navbar = () => {
                   <Link to="/intern-dashboard" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">Dashboard</Link>
                   <Link to="/my-profile" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">My Profile</Link>
                   <Link to="/my-projects" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">My Projects</Link>
+                </>
+              )}
+              {isEmployee && (
+                <>
+                  <Link to="/employee-dashboard" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">My Profile</Link>
+                  <Link to="/employee-projects" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">My Projects</Link>
                 </>
               )}
               <span className="text-gray-500 text-sm ml-4 border-l pl-4 border-gray-300">

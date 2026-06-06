@@ -3,9 +3,11 @@ package com.example.deploymentlab.controller;
 import com.example.deploymentlab.config.JwtUtils;
 import com.example.deploymentlab.config.UserDetailsImpl;
 import com.example.deploymentlab.model.Intern;
+import com.example.deploymentlab.model.Employee;
 import com.example.deploymentlab.model.PasswordResetToken;
 import com.example.deploymentlab.model.User;
 import com.example.deploymentlab.repository.InternRepository;
+import com.example.deploymentlab.repository.EmployeeRepository;
 import com.example.deploymentlab.repository.PasswordResetTokenRepository;
 import com.example.deploymentlab.repository.UserRepository;
 import jakarta.validation.Valid;
@@ -35,15 +37,18 @@ public class AuthController {
     private final JwtUtils jwtUtils;
     private final PasswordResetTokenRepository tokenRepository;
     private final InternRepository internRepository;
+    private final EmployeeRepository employeeRepository;
 
     public AuthController(AuthenticationManager authenticationManager, UserRepository userRepository,
-                          PasswordEncoder encoder, JwtUtils jwtUtils, PasswordResetTokenRepository tokenRepository, InternRepository internRepository) {
+                          PasswordEncoder encoder, JwtUtils jwtUtils, PasswordResetTokenRepository tokenRepository, 
+                          InternRepository internRepository, EmployeeRepository employeeRepository) {
         this.authenticationManager = authenticationManager;
         this.userRepository = userRepository;
         this.encoder = encoder;
         this.jwtUtils = jwtUtils;
         this.tokenRepository = tokenRepository;
         this.internRepository = internRepository;
+        this.employeeRepository = employeeRepository;
     }
 
     @PostMapping("/login")
@@ -73,6 +78,12 @@ public class AuthController {
         response.put("email", userDetails.getEmail());
         response.put("roles", userDetails.getAuthorities());
         response.put("internId", userDetails.getInternId());
+        response.put("employeeId", userDetails.getEmployeeId());
+
+        if (userDetails.getEmployeeId() != null) {
+            employeeRepository.findById(userDetails.getEmployeeId())
+                .ifPresent(emp -> response.put("designation", emp.getDesignation()));
+        }
 
         return ResponseEntity.ok(response);
     }
@@ -140,6 +151,12 @@ public class AuthController {
         response.put("email", userDetails.getEmail());
         response.put("roles", userDetails.getAuthorities());
         response.put("internId", userDetails.getInternId());
+        response.put("employeeId", userDetails.getEmployeeId());
+
+        if (userDetails.getEmployeeId() != null) {
+            employeeRepository.findById(userDetails.getEmployeeId())
+                .ifPresent(emp -> response.put("designation", emp.getDesignation()));
+        }
 
         return ResponseEntity.ok(response);
     }
@@ -202,6 +219,54 @@ public class AuthController {
         userRepository.save(user);
 
         return ResponseEntity.ok(Map.of("message", "Intern user registered successfully!"));
+    }
+
+    @PostMapping("/register-employee")
+    public ResponseEntity<?> registerEmployeeUser(@Valid @RequestBody RegisterEmployeeRequest request) {
+        if (userRepository.existsByUsername(request.getUsername())) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Error: Username is already taken!"));
+        }
+
+        if (userRepository.existsByEmail(request.getEmail())) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Error: Email is already in use for user account!"));
+        }
+
+        if (employeeRepository.existsByEmail(request.getEmail())) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Error: Email is already in use for employee profile!"));
+        }
+
+        // 1. Create Employee
+        Employee employee = new Employee();
+        employee.setFullName(request.getFullName());
+        employee.setEmail(request.getEmail());
+        employee.setDepartment(request.getDepartment());
+        employee.setDesignation(request.getDesignation());
+        employee.setPhoneNumber(request.getPhoneNumber());
+        
+        // Handle specialization logic
+        if (!request.getDesignation().equals("General Manager") && !request.getDesignation().equals("Deputy General Manager")) {
+            employee.setSpecialization(request.getSpecialization());
+        } else {
+            employee.setSpecialization(null); // Ensure cleared for GM/DGM
+        }
+
+        Employee savedEmployee = employeeRepository.save(employee);
+
+        // 2. Create User
+        User user = new User();
+        user.setUsername(request.getUsername());
+        user.setEmail(request.getEmail());
+        user.setPasswordHash(encoder.encode(request.getPassword()));
+        user.setRole("EMPLOYEE");
+        user.setEmployeeId(savedEmployee.getId());
+        
+        User savedUser = userRepository.save(user);
+
+        // 3. Link User ID back to Employee
+        savedEmployee.setUserId(savedUser.getId());
+        employeeRepository.save(savedEmployee);
+
+        return ResponseEntity.ok(Map.of("message", "Employee and user account registered successfully!"));
     }
 
     @PostMapping("/register")
@@ -331,5 +396,40 @@ public class AuthController {
         public void setEmail(String email) { this.email = email; }
         public String getPassword() { return password; }
         public void setPassword(String password) { this.password = password; }
+    }
+
+    public static class RegisterEmployeeRequest {
+        @NotBlank
+        private String username;
+        @NotBlank
+        private String email;
+        @NotBlank
+        private String password;
+        @NotBlank
+        private String fullName;
+        @NotBlank
+        private String department;
+        @NotBlank
+        private String designation;
+        
+        private String phoneNumber;
+        private String specialization;
+
+        public String getUsername() { return username; }
+        public void setUsername(String username) { this.username = username; }
+        public String getEmail() { return email; }
+        public void setEmail(String email) { this.email = email; }
+        public String getPassword() { return password; }
+        public void setPassword(String password) { this.password = password; }
+        public String getFullName() { return fullName; }
+        public void setFullName(String fullName) { this.fullName = fullName; }
+        public String getDepartment() { return department; }
+        public void setDepartment(String department) { this.department = department; }
+        public String getDesignation() { return designation; }
+        public void setDesignation(String designation) { this.designation = designation; }
+        public String getPhoneNumber() { return phoneNumber; }
+        public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
+        public String getSpecialization() { return specialization; }
+        public void setSpecialization(String specialization) { this.specialization = specialization; }
     }
 }
