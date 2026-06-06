@@ -219,14 +219,22 @@ Create a new Web Service on Render with the following settings:
 ### 2. Frontend Deployment (Vercel)
 
 Create a new Project on Vercel with the following settings:
-- **Framework Preset**: Vite
-- **Root Directory**: `frontend`
-- **Install Command**: `npm ci` or `npm install`
-- **Build Command**: `npm run build`
-- **Output Directory**: `dist`
 
-**Environment Variables**:
-- `VITE_API_BASE_URL`: `https://your-render-backend.onrender.com/api`
+Vercel settings:
+- **Framework Preset**: Vite
+- **Root Directory**: frontend
+- **Install Command**: npm install
+- **Build Command**: npm run build
+- **Output Directory**: dist
+
+Vercel environment variable:
+- `VITE_API_BASE_URL=https://internsync-backend-phar.onrender.com/api`
+
+After Vercel deployment:
+- Copy the Vercel frontend URL.
+- Add it to Render backend environment variable `ALLOWED_ORIGINS`.
+- Example: `ALLOWED_ORIGINS=http://localhost:15173,https://your-vercel-app.vercel.app`
+- Redeploy the Render backend.
 
 ### Final Deployment Checklist
 
@@ -236,13 +244,18 @@ Create a new Project on Vercel with the following settings:
 - [ ] Vercel frontend deployed successfully
 - [ ] Vercel URL added to Render `ALLOWED_ORIGINS`
 - [ ] Render backend redeployed after adding Vercel URL
-- [ ] Login works
-- [ ] Admin dashboard works
-- [ ] Intern dashboard works
-- [ ] Employee dashboard works
-- [ ] GM dashboard works
-- [ ] DGM dashboard works
-- [ ] Browser refresh works on protected routes
+- [ ] Vercel frontend loads.
+- [ ] Login page loads.
+- [ ] Admin login works.
+- [ ] Intern login works.
+- [ ] Employee login works.
+- [ ] General Manager login works.
+- [ ] Deputy General Manager login works.
+- [ ] Dashboard pages load.
+- [ ] Refreshing `/gm-dashboard` does not show 404.
+- [ ] Refreshing `/projects` does not show 404.
+- [ ] Browser DevTools Network tab shows API requests going to: `https://internsync-backend-phar.onrender.com/api`
+- [ ] No API requests should go to: `localhost:19090`
 
 ## 📂 Project Structure
 
