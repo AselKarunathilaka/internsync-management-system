@@ -196,17 +196,53 @@ The application will be accessible at `http://localhost:15173`. You can log in u
 | `POST` | `/api/employee-schedules` | Save working schedule | Employee |
 | `GET` | `/api/employees/me/projects` | Get own assigned projects | Employee |
 
-## 📦 Production Deployment (Windows IIS)
+## 📦 Cloud Production Deployment (Render + Vercel)
 
-InternSync is specifically configured to be deployed on a Windows Server using IIS.
+InternSync is configured to be deployed using Render for the backend and Vercel for the frontend.
 
-1. **Backend**: Compile the Spring Boot backend using `mvn clean package` and run the resulting `.jar` file on your server. Ensure the `MONGODB_URI` environment variable is set on the Windows Server.
-2. **Frontend**: Inside the `frontend` directory, run:
-   ```powershell
-   npm run build
-   ```
-3. **IIS Hosting**: This will generate an optimized `dist` folder. Copy the contents of this folder directly to your IIS site directory.
-4. **Automatic Routing**: Because the frontend uses dynamic API routing, it will automatically route API requests to port `19090` of your Windows Server's IP address.
+### 1. Backend Deployment (Render)
+
+Create a new Web Service on Render with the following settings:
+- **Environment**: Docker
+- **Root Directory**: `backend`
+- **Dockerfile Path**: `Dockerfile`
+- **Health Check Path**: `/api/status`
+
+**Environment Variables**:
+- `MONGODB_URI`: `mongodb+srv://<username>:<password>@<cluster>/<database>?retryWrites=true&w=majority`
+- `JWT_SECRET`: `<long-random-secret-at-least-32-characters>`
+- `JWT_EXPIRATION_MS`: `86400000`
+- `APP_VERSION`: `1.0.0`
+- `ALLOWED_ORIGINS`: `http://localhost:15173,https://your-vercel-app.vercel.app`
+- `SECURITY_LOG_LEVEL`: `INFO`
+
+### 2. Frontend Deployment (Vercel)
+
+Create a new Project on Vercel with the following settings:
+- **Framework Preset**: Vite
+- **Root Directory**: `frontend`
+- **Install Command**: `npm ci` or `npm install`
+- **Build Command**: `npm run build`
+- **Output Directory**: `dist`
+
+**Environment Variables**:
+- `VITE_API_BASE_URL`: `https://your-render-backend.onrender.com/api`
+
+### Final Deployment Checklist
+
+- [ ] MongoDB Atlas network access allows Render backend
+- [ ] Render backend deployed successfully
+- [ ] `/api/status` works from browser
+- [ ] Vercel frontend deployed successfully
+- [ ] Vercel URL added to Render `ALLOWED_ORIGINS`
+- [ ] Render backend redeployed after adding Vercel URL
+- [ ] Login works
+- [ ] Admin dashboard works
+- [ ] Intern dashboard works
+- [ ] Employee dashboard works
+- [ ] GM dashboard works
+- [ ] DGM dashboard works
+- [ ] Browser refresh works on protected routes
 
 ## 📂 Project Structure
 

@@ -5,18 +5,23 @@ import io.jsonwebtoken.security.Keys;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
 
+import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
+
+import org.springframework.beans.factory.annotation.Value;
 
 @Component
 public class JwtUtils {
 
-    // Should ideally be in application.properties, but putting it here for simplicity
-    private final String jwtSecret = "InternSyncManagementSystemSecretKeyWhichIsAtLeast32BytesLong1234567890";
-    private final int jwtExpirationMs = 86400000; // 24 hours
+    @Value("${app.jwt.secret}")
+    private String jwtSecret;
+
+    @Value("${app.jwt.expiration-ms:86400000}")
+    private int jwtExpirationMs;
 
     private Key key() {
-        return Keys.hmacShaKeyFor(jwtSecret.getBytes());
+        return Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
     }
 
     public String generateJwtToken(Authentication authentication) {

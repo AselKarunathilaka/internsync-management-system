@@ -228,6 +228,7 @@ public class AuthController {
     }
 
     @PostMapping("/register-employee")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> registerEmployeeUser(@Valid @RequestBody RegisterEmployeeRequest request) {
         if (userRepository.existsByUsername(request.getUsername())) {
             return ResponseEntity.badRequest().body(Map.of("message", "Error: Username is already taken!"));
@@ -301,7 +302,7 @@ public class AuthController {
             user.setRole("INTERN");
             user.setInternId(interns.get(0).getId());
         } else {
-            user.setRole("ADMIN");
+            return ResponseEntity.badRequest().body(Map.of("message", "Error: Public registration only allowed for INTERN role."));
         }
 
         userRepository.save(user);
