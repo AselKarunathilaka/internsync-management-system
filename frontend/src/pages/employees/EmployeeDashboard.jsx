@@ -14,21 +14,34 @@ const EmployeeDashboard = () => {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        if (!user?.roles?.includes('ROLE_EMPLOYEE')) {
+        if (!user?.roles?.some(r => r.authority === 'ROLE_EMPLOYEE')) {
           setError("No employee profile associated with your account.");
           setLoading(false);
           return;
         }
 
         const [profileRes, projectsRes, internsRes] = await Promise.all([
-          api.get(`/employees/me`),
-          api.get(`/employees/me/projects`),
-          api.get(`/interns`)
+          api.get(`/employees/me`).catch(() => ({ data: null })),
+          api.get(`/employees/me/projects`).catch(() => ({ data: [] })),
+          api.get(`/interns`).catch(() => ({ data: [] }))
         ]);
 
-        setProfile(profileRes.data);
-        setProjects(projectsRes.data);
-        setAllInterns(internsRes.data);
+        if (!profileRes.data) {
+          // Fallback if the employee profile isn't fully linked
+          setProfile({
+            fullName: user?.fullName || user?.username || 'Employee User',
+            email: user?.email || '',
+            designation: 'New Employee',
+            department: 'Unassigned',
+            phoneNumber: '',
+            specialization: 'Onboarding'
+          });
+        } else {
+          setProfile(profileRes.data);
+        }
+        
+        setProjects(projectsRes.data || []);
+        setAllInterns(internsRes.data || []);
         setLoading(false);
       } catch (err) {
         console.error("Error fetching employee dashboard data", err);

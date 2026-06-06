@@ -4,6 +4,8 @@ import com.example.deploymentlab.model.Employee;
 import com.example.deploymentlab.repository.EmployeeRepository;
 import com.example.deploymentlab.model.Project;
 import com.example.deploymentlab.repository.ProjectRepository;
+import com.example.deploymentlab.model.User;
+import com.example.deploymentlab.repository.UserRepository;
 import com.example.deploymentlab.config.UserDetailsImpl;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -24,10 +26,12 @@ public class EmployeeController {
 
     private final EmployeeRepository employeeRepository;
     private final ProjectRepository projectRepository;
+    private final UserRepository userRepository;
 
-    public EmployeeController(EmployeeRepository employeeRepository, ProjectRepository projectRepository) {
+    public EmployeeController(EmployeeRepository employeeRepository, ProjectRepository projectRepository, UserRepository userRepository) {
         this.employeeRepository = employeeRepository;
         this.projectRepository = projectRepository;
+        this.userRepository = userRepository;
     }
 
     @GetMapping
@@ -130,6 +134,56 @@ public class EmployeeController {
         }
 
         return ResponseEntity.ok(employeeOpt.get());
+    }
+
+    @PutMapping("/me")
+    @PreAuthorize("hasRole('EMPLOYEE')")
+    public ResponseEntity<?> updateMyProfile(@RequestBody Employee updateRequest) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) {
+            return ResponseEntity.status(401).body("Unauthorized");
+        }
+
+        UserDetailsImpl userDetails = (UserDetailsImpl) auth.getPrincipal();
+        String employeeId = userDetails.getEmployeeId();
+
+        if (employeeId == null) {
+            return ResponseEntity.badRequest().body("User is not linked to an employee profile. Please ask an Admin to link your profile first.");
+        }
+
+        Optional<Employee> employeeOpt = employeeRepository.findById(employeeId);
+        if (employeeOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        Employee employee = employeeOpt.get();
+        if (updateRequest.getFullName() != null) employee.setFullName(updateRequest.getFullName());
+        if (updateRequest.getEmail() != null) employee.setEmail(updateRequest.getEmail());
+        if (updateRequest.getPhoneNumber() != null) employee.setPhoneNumber(updateRequest.getPhoneNumber());
+        employee.setUpdatedAt(LocalDateTime.now());
+        
+        Employee savedEmployee = employeeRepository.save(employee);
+
+        // Sync with User document to ensure JWT and global identity reflect changes immediately
+        Optional<User> userOpt = userRepository.findById(userDetails.getId());
+        if (userOpt.isPresent()) {
+            User user = userOpt.get();
+            boolean userChanged = false;
+            if (updateRequest.getEmail() != null && !updateRequest.getEmail().equals(user.getEmail())) {
+                user.setEmail(updateRequest.getEmail());
+                userChanged = true;
+            }
+            if (updateRequest.getFullName() != null && !updateRequest.getFullName().equals(user.getUsername())) {
+                user.setUsername(updateRequest.getFullName());
+                userChanged = true;
+            }
+            if (userChanged) {
+                user.setUpdatedAt(LocalDateTime.now());
+                userRepository.save(user);
+            }
+        }
+
+        return ResponseEntity.ok(savedEmployee);
     }
 
     @GetMapping("/me/projects")

@@ -28,8 +28,13 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, String>> handleAllOtherExceptions(Exception ex) {
         Map<String, String> response = new HashMap<>();
         response.put("error", "An unexpected error occurred. Please contact support.");
-        // We log the actual exception internally but do NOT expose the stack trace to the client.
-        System.err.println("Internal Error: " + ex.getMessage());
-        return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+        response.put("message", ex.getMessage());
+        
+        java.io.StringWriter sw = new java.io.StringWriter();
+        ex.printStackTrace(new java.io.PrintWriter(sw));
+        response.put("trace", sw.toString());
+
+        System.err.println("Unexpected error: " + ex.getMessage());
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
 }

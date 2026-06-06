@@ -20,6 +20,9 @@ import EmployeeForm from './pages/employees/EmployeeForm';
 import EmployeeProfile from './pages/employees/EmployeeProfile';
 import EmployeeDashboard from './pages/employees/EmployeeDashboard';
 import EmployeeProjects from './pages/employees/EmployeeProjects';
+import EmployeeTasks from './pages/employees/EmployeeTasks';
+import EmployeeSchedules from './pages/employees/EmployeeSchedules';
+import EmployeeMyProfile from './pages/employees/EmployeeMyProfile';
 import ProjectList from './pages/projects/ProjectList';
 import ProjectForm from './pages/projects/ProjectForm';
 import ProjectView from './pages/projects/ProjectView';
@@ -30,6 +33,7 @@ import DepartmentView from './pages/departments/DepartmentView';
 import MyProfile from './pages/interns/MyProfile';
 import MyProjects from './pages/interns/MyProjects';
 import InternDashboard from './pages/interns/InternDashboard';
+import DailyLogBook from './pages/interns/DailyLogBook';
 
 import NotFound from './pages/NotFound';
 
@@ -73,10 +77,14 @@ function App() {
             <Route path="/intern-dashboard" element={<ProtectedRoute roles={['INTERN']}><InternDashboard /></ProtectedRoute>} />
             <Route path="/my-profile" element={<ProtectedRoute roles={['INTERN']}><MyProfile /></ProtectedRoute>} />
             <Route path="/my-projects" element={<ProtectedRoute roles={['INTERN']}><MyProjects /></ProtectedRoute>} />
+            <Route path="/log-book" element={<ProtectedRoute roles={['INTERN']}><DailyLogBook /></ProtectedRoute>} />
 
             {/* Employee Routes */}
             <Route path="/employee-dashboard" element={<ProtectedRoute roles={['EMPLOYEE']}><EmployeeDashboard /></ProtectedRoute>} />
             <Route path="/employee-projects" element={<ProtectedRoute roles={['EMPLOYEE']}><EmployeeProjects /></ProtectedRoute>} />
+            <Route path="/employee-tasks" element={<ProtectedRoute roles={['EMPLOYEE']}><EmployeeTasks /></ProtectedRoute>} />
+            <Route path="/employee-schedules" element={<ProtectedRoute roles={['EMPLOYEE']}><EmployeeSchedules /></ProtectedRoute>} />
+            <Route path="/employee-profile" element={<ProtectedRoute roles={['EMPLOYEE']}><EmployeeMyProfile /></ProtectedRoute>} />
 
             {/* Catch-all 404 */}
             <Route path="*" element={<NotFound />} />

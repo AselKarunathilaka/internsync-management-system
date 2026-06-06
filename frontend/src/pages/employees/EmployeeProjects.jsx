@@ -7,16 +7,19 @@ const EmployeeProjects = () => {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    api.get('/employees/me/projects')
-      .then(res => {
-        setProjects(res.data);
+    const fetchProjects = async () => {
+      try {
+        const res = await api.get('/employees/me/projects');
+        setProjects(res.data || []);
+      } catch (err) {
+        console.error("Error fetching projects", err);
+        setError('Failed to load projects.');
+        setProjects([]);
+      } finally {
         setLoading(false);
-      })
-      .catch(err => {
-        console.error("Error fetching my projects", err);
-        setError(err.response?.data?.message || 'Failed to load projects');
-        setLoading(false);
-      });
+      }
+    };
+    fetchProjects();
   }, []);
 
   return (
