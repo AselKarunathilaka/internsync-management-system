@@ -239,4 +239,4 @@ internsync-management-system/
 
 ## 📝 License
 
-This project is developed for internal use at SLIIT as part of a DevOps internship program.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
