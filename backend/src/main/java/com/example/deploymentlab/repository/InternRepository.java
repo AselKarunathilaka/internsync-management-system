@@ -6,4 +6,5 @@ import java.util.List;
 
 public interface InternRepository extends MongoRepository<Intern, String> {
     List<Intern> findByInternNumber(String internNumber);
+    List<Intern> findByDepartment(String department);
 }

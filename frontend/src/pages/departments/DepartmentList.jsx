@@ -6,6 +6,8 @@ import { AuthContext } from '../../context/AuthContext';
 const DepartmentList = () => {
   const [departments, setDepartments] = useState([]);
   const [employees, setEmployees] = useState([]);
+  const [projects, setProjects] = useState([]);
+  const [interns, setInterns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const { user } = useContext(AuthContext);
@@ -13,12 +15,16 @@ const DepartmentList = () => {
 
   const fetchData = async () => {
     try {
-      const [deptRes, empRes] = await Promise.all([
+      const [deptRes, empRes, projRes, internRes] = await Promise.all([
         api.get('/departments'),
-        api.get('/employees')
+        api.get('/employees'),
+        api.get('/projects'),
+        api.get('/interns')
       ]);
       setDepartments(deptRes.data);
       setEmployees(empRes.data);
+      setProjects(projRes.data);
+      setInterns(internRes.data);
       setLoading(false);
     } catch (err) {
       console.error("Error fetching data", err);
@@ -81,7 +87,14 @@ const DepartmentList = () => {
             <p className="text-gray-500 mb-6 max-w-md mx-auto">Get started by creating your first organizational department.</p>
           </div>
         ) : (
-          departments.map(dept => (
+          departments.map(dept => {
+            const deptProjects = projects.filter(p => p.department === dept.name);
+            const projectCount = deptProjects.length;
+            const staffCount = employees.filter(e => e.department === dept.name).length;
+            const assignedInternIds = new Set(deptProjects.flatMap(p => p.assignedInternIds || []));
+            const internCount = interns.filter(i => assignedInternIds.has(i.id)).length;
+            
+            return (
             <div key={dept.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow relative overflow-hidden group">
               <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-teal-400 to-emerald-500"></div>
               
@@ -123,8 +136,24 @@ const DepartmentList = () => {
                   <p className="font-medium text-gray-800">{getEmployeeName(dept.deputyGmId)}</p>
                 </div>
               </div>
+
+              <div className="flex justify-between items-center border-t border-gray-100 pt-4 mt-4">
+                <div className="text-center px-4">
+                  <p className="text-2xl font-bold text-emerald-600">{staffCount}</p>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Staff</p>
+                </div>
+                <div className="text-center border-x border-gray-100 px-8">
+                  <p className="text-2xl font-bold text-blue-600">{projectCount}</p>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Projects</p>
+                </div>
+                <div className="text-center px-4">
+                  <p className="text-2xl font-bold text-purple-600">{internCount}</p>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Interns</p>
+                </div>
+              </div>
             </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>

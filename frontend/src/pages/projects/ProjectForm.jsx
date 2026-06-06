@@ -196,15 +196,6 @@ const ProjectForm = () => {
             </div>
           </div>
 
-          <div className="max-w-4xl mx-auto flex gap-4 pt-4">
-            <button type="submit" className="btn btn-success flex-1 text-lg py-3 shadow-lg flex justify-center items-center gap-2">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-              </svg>
-              {isEdit ? 'Save Project Details' : 'Create & Continue to Assignment'}
-            </button>
-          </div>
-        </form>
 
         {isEdit && (
           <div className="space-y-8 mt-12 pt-8 border-t border-gray-200/50 max-w-4xl mx-auto">
@@ -287,9 +278,18 @@ const ProjectForm = () => {
                 </table>
               </div>
             </div>
-
           </div>
         )}
+
+        <div className="max-w-4xl mx-auto flex gap-4 pt-4 mt-8">
+          <button type="submit" className="btn btn-success flex-1 text-lg py-3 shadow-lg flex justify-center items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+            </svg>
+            {isEdit ? 'Save Project Details' : 'Create & Continue to Assignment'}
+          </button>
+        </div>
+        </form>
 
       </div>
     </>

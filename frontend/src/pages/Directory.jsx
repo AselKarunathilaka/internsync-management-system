@@ -6,18 +6,21 @@ const Directory = () => {
   const [interns, setInterns] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [projects, setProjects] = useState([]);
+  const [departmentsList, setDepartmentsList] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     Promise.all([
       api.get('/interns'),
       api.get('/employees'),
-      api.get('/projects')
+      api.get('/projects'),
+      api.get('/departments')
     ])
-      .then(([internsRes, employeesRes, projectsRes]) => {
+      .then(([internsRes, employeesRes, projectsRes, deptsRes]) => {
         setInterns(internsRes.data);
         setEmployees(employeesRes.data);
         setProjects(projectsRes.data);
+        setDepartmentsList(deptsRes.data);
         setLoading(false);
       })
       .catch(err => {
@@ -88,16 +91,21 @@ const Directory = () => {
             {departments.map((deptName, idx) => {
               const dept = directoryData[deptName];
               
-              // Sort employees to show GM/Management first, then Supervisors, then others
+              const getRank = (desig) => {
+                if (!desig) return 5;
+                const d = desig.toLowerCase();
+                if (d === 'general manager') return 1;
+                if (d === 'deputy general manager') return 2;
+                if (d.includes('manager') || d.includes('gm')) return 3;
+                if (d.includes('lead') || d.includes('supervisor')) return 4;
+                return 5;
+              };
+              
               const sortedEmployees = [...dept.employees].sort((a, b) => {
-                const aDesig = a.designation.toLowerCase();
-                const bDesig = b.designation.toLowerCase();
-                if (aDesig.includes('manager') || aDesig.includes('gm')) return -1;
-                if (bDesig.includes('manager') || bDesig.includes('gm')) return 1;
-                if (aDesig.includes('supervisor') || aDesig.includes('lead')) return -1;
-                if (bDesig.includes('supervisor') || bDesig.includes('lead')) return 1;
-                return a.fullName.localeCompare(b.fullName);
+                return getRank(a.designation) - getRank(b.designation) || a.fullName.localeCompare(b.fullName);
               });
+
+              const deptObj = departmentsList.find(d => d.name === deptName);
 
               return (
                 <div key={deptName} className="glass-card animate-slide-up" style={{ animationDelay: `${idx * 150}ms` }}>
@@ -108,7 +116,13 @@ const Directory = () => {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                         </svg>
                       </div>
-                      {deptName}
+                      {deptObj ? (
+                        <Link to={`/departments/view/${deptObj.id}`} className="hover:underline hover:text-indigo-600 transition-colors">
+                          {deptName}
+                        </Link>
+                      ) : (
+                        deptName
+                      )}
                     </h3>
                     <div className="flex gap-4">
                       <span className="text-xs font-bold px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full shadow-sm">{dept.employees.length} Employees</span>

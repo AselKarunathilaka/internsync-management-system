@@ -2,8 +2,12 @@ package com.example.deploymentlab.controller;
 
 import com.example.deploymentlab.model.Department;
 import com.example.deploymentlab.model.Employee;
+import com.example.deploymentlab.model.Intern;
+import com.example.deploymentlab.model.Project;
 import com.example.deploymentlab.repository.DepartmentRepository;
 import com.example.deploymentlab.repository.EmployeeRepository;
+import com.example.deploymentlab.repository.InternRepository;
+import com.example.deploymentlab.repository.ProjectRepository;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,10 +25,15 @@ public class DepartmentController {
 
     private final DepartmentRepository departmentRepository;
     private final EmployeeRepository employeeRepository;
+    private final ProjectRepository projectRepository;
+    private final InternRepository internRepository;
 
-    public DepartmentController(DepartmentRepository departmentRepository, EmployeeRepository employeeRepository) {
+    public DepartmentController(DepartmentRepository departmentRepository, EmployeeRepository employeeRepository,
+                                ProjectRepository projectRepository, InternRepository internRepository) {
         this.departmentRepository = departmentRepository;
         this.employeeRepository = employeeRepository;
+        this.projectRepository = projectRepository;
+        this.internRepository = internRepository;
     }
 
     private boolean hasAdminOrManagerRole(org.springframework.security.core.Authentication auth) {
@@ -60,6 +69,10 @@ public class DepartmentController {
         department.setCreatedAt(LocalDateTime.now());
         department.setUpdatedAt(LocalDateTime.now());
         Department savedDepartment = departmentRepository.save(department);
+        
+        assignDepartmentToEmployee(savedDepartment.getGmId(), savedDepartment.getName());
+        assignDepartmentToEmployee(savedDepartment.getDeputyGmId(), savedDepartment.getName());
+        
         return new ResponseEntity<>(savedDepartment, HttpStatus.CREATED);
     }
 
@@ -78,13 +91,42 @@ public class DepartmentController {
         Optional<Department> optionalDepartment = departmentRepository.findById(id);
         if (optionalDepartment.isPresent()) {
             Department department = optionalDepartment.get();
-            department.setName(departmentDetails.getName());
+            String oldName = department.getName();
+            String newName = departmentDetails.getName();
+            
+            department.setName(newName);
             department.setDescription(departmentDetails.getDescription());
             department.setGmId(departmentDetails.getGmId());
             department.setDeputyGmId(departmentDetails.getDeputyGmId());
             department.setUpdatedAt(LocalDateTime.now());
             
-            return ResponseEntity.ok(departmentRepository.save(department));
+            Department savedDepartment = departmentRepository.save(department);
+            
+            if (!oldName.equals(newName)) {
+                // Cascade name change to Employees
+                List<Employee> emps = employeeRepository.findByDepartment(oldName);
+                for (Employee e : emps) {
+                    e.setDepartment(newName);
+                    employeeRepository.save(e);
+                }
+                // Cascade to Projects
+                List<Project> projs = projectRepository.findByDepartment(oldName);
+                for (Project p : projs) {
+                    p.setDepartment(newName);
+                    projectRepository.save(p);
+                }
+                // Cascade to Interns
+                List<Intern> ints = internRepository.findByDepartment(oldName);
+                for (Intern i : ints) {
+                    i.setDepartment(newName);
+                    internRepository.save(i);
+                }
+            }
+            
+            assignDepartmentToEmployee(savedDepartment.getGmId(), savedDepartment.getName());
+            assignDepartmentToEmployee(savedDepartment.getDeputyGmId(), savedDepartment.getName());
+            
+            return ResponseEntity.ok(savedDepartment);
         } else {
             return ResponseEntity.notFound().build();
         }
@@ -101,6 +143,17 @@ public class DepartmentController {
             return ResponseEntity.noContent().build();
         } else {
             return ResponseEntity.notFound().build();
+        }
+    }
+
+    private void assignDepartmentToEmployee(String empId, String deptName) {
+        if (empId != null && !empId.isBlank()) {
+            Optional<Employee> empOpt = employeeRepository.findById(empId);
+            if (empOpt.isPresent()) {
+                Employee emp = empOpt.get();
+                emp.setDepartment(deptName);
+                employeeRepository.save(emp);
+            }
         }
     }
 }

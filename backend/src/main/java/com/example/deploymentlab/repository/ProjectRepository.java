@@ -10,4 +10,6 @@ public interface ProjectRepository extends MongoRepository<Project, String> {
     
     @Query("{ 'assignedInternIds' : ?0 }")
     List<Project> findByAssignedInternId(String internId);
+
+    List<Project> findByDepartment(String department);
 }
