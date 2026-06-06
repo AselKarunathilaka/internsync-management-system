@@ -26,7 +26,14 @@ const Login = () => {
       if (roles.some(r => r.authority === 'ROLE_ADMIN')) {
         navigate('/');
       } else if (roles.some(r => r.authority === 'ROLE_EMPLOYEE')) {
-        navigate('/employee-dashboard');
+        const designation = response.data.designation;
+        if (designation === 'General Manager') {
+          navigate('/gm-dashboard');
+        } else if (designation === 'Deputy General Manager') {
+          navigate('/dgm-dashboard');
+        } else {
+          navigate('/employee-dashboard');
+        }
       } else {
         navigate('/intern-dashboard');
       }

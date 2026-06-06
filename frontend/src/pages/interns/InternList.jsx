@@ -13,6 +13,9 @@ const InternList = () => {
   const [interns, setInterns] = useState([]);
   const [search, setSearch] = useState('');
   const [specializationFilter, setSpecializationFilter] = useState('');
+  const [departmentFilter, setDepartmentFilter] = useState('');
+  const [stipendFilter, setStipendFilter] = useState('');
+  const [assignmentFilter, setAssignmentFilter] = useState('');
   const [loading, setLoading] = useState(true);
 
   const fetchInterns = () => {
@@ -46,8 +49,20 @@ const InternList = () => {
       intern.internNumber.toLowerCase().includes(term) || 
       intern.fullName.toLowerCase().includes(term);
     const matchesSpec = specializationFilter ? intern.specialization === specializationFilter : true;
-    return matchesSearch && matchesSpec;
+    const matchesDept = departmentFilter ? intern.department === departmentFilter : true;
+    const matchesStipend = stipendFilter ? intern.stipendType === stipendFilter : true;
+    const matchesAssignment = assignmentFilter ? intern.assignmentStatus === assignmentFilter : true;
+    return matchesSearch && matchesSpec && matchesDept && matchesStipend && matchesAssignment;
   });
+
+  const getDepartmentStyle = (dept) => {
+    switch(dept) {
+      case 'Digital Platforms': return 'bg-blue-50 text-blue-700 border-blue-200';
+      case 'Digital Labs': return 'bg-purple-50 text-purple-700 border-purple-200';
+      case 'Human Capital': return 'bg-rose-50 text-rose-700 border-rose-200';
+      default: return 'bg-gray-50 text-gray-700 border-gray-200';
+    }
+  };
 
   const handleExportPDF = () => {
     const doc = new jsPDF();
@@ -60,7 +75,7 @@ const InternList = () => {
     doc.text(`Specialization Filter: ${specializationFilter || 'All'}  |  Search Query: ${search || 'None'}`, 14, 32);
     doc.text(`Total Records Found: ${filteredInterns.length}`, 14, 38);
 
-    const tableColumn = ["Intern #", "Name", "Specialization", "University", "Status"];
+    const tableColumn = ["Intern #", "Name", "Spec.", "Dept", "University", "Status", "Stipend", "Assignment"];
     const tableRows = [];
 
     filteredInterns.forEach(intern => {
@@ -68,8 +83,11 @@ const InternList = () => {
         intern.internNumber,
         intern.fullName,
         intern.specialization || 'N/A',
+        intern.department || 'N/A',
         intern.university || 'N/A',
-        intern.status
+        intern.status,
+        intern.stipendType || 'PENDING',
+        intern.assignmentStatus || 'PENDING_MANAGER_REVIEW'
       ]);
     });
 
@@ -122,16 +140,48 @@ const InternList = () => {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <select 
-              className="form-input md:w-64 cursor-pointer"
-              value={specializationFilter} 
-              onChange={(e) => setSpecializationFilter(e.target.value)}
-            >
-              <option value="">All Specializations</option>
-              {SPECIALIZATIONS.map(spec => (
-                <option key={spec} value={spec}>{spec}</option>
-              ))}
-            </select>
+            <div className="flex gap-2">
+              <select 
+                className="form-input md:w-48 cursor-pointer"
+                value={specializationFilter} 
+                onChange={(e) => setSpecializationFilter(e.target.value)}
+              >
+                <option value="">All Specializations</option>
+                {SPECIALIZATIONS.map(spec => (
+                  <option key={spec} value={spec}>{spec}</option>
+                ))}
+              </select>
+              <select 
+                className="form-input md:w-48 cursor-pointer"
+                value={departmentFilter} 
+                onChange={(e) => setDepartmentFilter(e.target.value)}
+              >
+                <option value="">All Departments</option>
+                <option value="Digital Platforms">Digital Platforms</option>
+                <option value="Digital Labs">Digital Labs</option>
+                <option value="Human Capital">Human Capital</option>
+              </select>
+              <select 
+                className="form-input md:w-40 cursor-pointer"
+                value={stipendFilter} 
+                onChange={(e) => setStipendFilter(e.target.value)}
+              >
+                <option value="">All Stipends</option>
+                <option value="PENDING">PENDING</option>
+                <option value="PAID">PAID</option>
+                <option value="NON_PAID">NON_PAID</option>
+              </select>
+              <select 
+                className="form-input md:w-56 cursor-pointer"
+                value={assignmentFilter} 
+                onChange={(e) => setAssignmentFilter(e.target.value)}
+              >
+                <option value="">All Assignments</option>
+                <option value="PENDING_MANAGER_REVIEW">PENDING_MANAGER_REVIEW</option>
+                <option value="ASSIGNED_TO_PROJECT">ASSIGNED_TO_PROJECT</option>
+                <option value="ON_HOLD">ON_HOLD</option>
+              </select>
+            </div>
           </div>
 
           {loading ? (
@@ -146,8 +196,11 @@ const InternList = () => {
                     <th className="p-4 font-semibold">Intern #</th>
                     <th className="p-4 font-semibold">Name</th>
                     <th className="p-4 font-semibold">Specialization</th>
+                    <th className="p-4 font-semibold">Department</th>
                     <th className="p-4 font-semibold">University</th>
                     <th className="p-4 font-semibold">Status</th>
+                    <th className="p-4 font-semibold">Stipend</th>
+                    <th className="p-4 font-semibold">Assignment</th>
                     <th className="p-4 font-semibold text-center">Actions</th>
                   </tr>
                 </thead>
@@ -164,6 +217,14 @@ const InternList = () => {
                             {intern.specialization || 'N/A'}
                           </span>
                         </td>
+                        <td className="p-4">
+                          <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-extrabold tracking-wide uppercase shadow-sm border ${getDepartmentStyle(intern.department)}`}>
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 opacity-80" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 110 2h-3a1 1 0 01-1-1v-2a1 1 0 00-1-1H9a1 1 0 00-1 1v2a1 1 0 01-1 1H4a1 1 0 110-2V4zm3 1h2v2H7V5zm2 4H7v2h2V9zm2-4h2v2h-2V5zm2 4h-2v2h2V9z" clipRule="evenodd" />
+                            </svg>
+                            {intern.department || 'N/A'}
+                          </span>
+                        </td>
                         <td className="p-4 text-gray-600">{intern.university}</td>
                         <td className="p-4">
                           <span className={`px-3 py-1.5 rounded-full text-xs font-bold shadow-sm border ${
@@ -172,6 +233,12 @@ const InternList = () => {
                           }`}>
                             {intern.status}
                           </span>
+                        </td>
+                        <td className="p-4 text-xs font-semibold text-gray-600">
+                          {intern.stipendType || 'PENDING'}
+                        </td>
+                        <td className="p-4 text-xs font-semibold text-gray-600">
+                          {intern.assignmentStatus ? intern.assignmentStatus.replace(/_/g, ' ') : 'PENDING'}
                         </td>
                         <td className="p-4 text-center">
                           <div className="flex justify-center gap-2">

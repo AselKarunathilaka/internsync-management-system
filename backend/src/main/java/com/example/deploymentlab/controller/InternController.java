@@ -2,7 +2,9 @@ package com.example.deploymentlab.controller;
 
 import com.example.deploymentlab.config.UserDetailsImpl;
 import com.example.deploymentlab.model.Intern;
+import com.example.deploymentlab.model.InternAssignmentStatus;
 import com.example.deploymentlab.repository.InternRepository;
+import com.example.deploymentlab.service.DepartmentHelper;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -57,6 +59,8 @@ public class InternController {
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Intern> createIntern(@Valid @RequestBody Intern intern) {
+        String autoDept = DepartmentHelper.resolveDepartmentFromSpecialization(intern.getSpecialization()).getDisplayName();
+        intern.setDepartment(autoDept);
         intern.setCreatedAt(LocalDateTime.now());
         intern.setUpdatedAt(LocalDateTime.now());
         Intern savedIntern = internRepository.save(intern);
@@ -72,8 +76,20 @@ public class InternController {
             intern.setInternNumber(internDetails.getInternNumber());
             intern.setFullName(internDetails.getFullName());
             intern.setEmail(internDetails.getEmail());
-            intern.setDepartment(internDetails.getDepartment());
-            intern.setSpecialization(internDetails.getSpecialization());
+            
+            // Handle specialization change and department auto-assignment safely
+            if (internDetails.getSpecialization() != null && !internDetails.getSpecialization().equals(intern.getSpecialization())) {
+                String newDept = DepartmentHelper.resolveDepartmentFromSpecialization(internDetails.getSpecialization()).getDisplayName();
+                intern.setDepartment(newDept);
+                intern.setSpecialization(internDetails.getSpecialization());
+                // Resetting assignment status because the intern moved to a new specialization/department
+                intern.setAssignmentStatus(InternAssignmentStatus.PENDING_MANAGER_REVIEW);
+            } else if (intern.getDepartment() == null) {
+                // Failsafe for existing interns without a department
+                String autoDept = DepartmentHelper.resolveDepartmentFromSpecialization(intern.getSpecialization()).getDisplayName();
+                intern.setDepartment(autoDept);
+            }
+
             intern.setUniversity(internDetails.getUniversity());
             intern.setPhoneNumber(internDetails.getPhoneNumber());
             intern.setStartDate(internDetails.getStartDate());

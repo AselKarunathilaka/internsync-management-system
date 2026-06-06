@@ -35,6 +35,13 @@ import MyProjects from './pages/interns/MyProjects';
 import InternDashboard from './pages/interns/InternDashboard';
 import DailyLogBook from './pages/interns/DailyLogBook';
 
+import GmDashboard from './pages/gm/GmDashboard';
+import GmInterns from './pages/gm/GmInterns';
+import GmProjects from './pages/gm/GmProjects';
+import GmEmployees from './pages/gm/GmEmployees';
+
+import DgmDashboard from './pages/dgm/DgmDashboard';
+
 import NotFound from './pages/NotFound';
 
 function App() {
@@ -55,9 +62,9 @@ function App() {
             <Route path="/" element={<ProtectedRoute roles={['ADMIN']}><Dashboard /></ProtectedRoute>} />
             <Route path="/directory" element={<ProtectedRoute roles={['ADMIN']}><Directory /></ProtectedRoute>} />
             <Route path="/employees" element={<ProtectedRoute roles={['ADMIN']}><EmployeeList /></ProtectedRoute>} />
-            <Route path="/employees/view/:id" element={<ProtectedRoute roles={['ADMIN']}><EmployeeProfile /></ProtectedRoute>} />
-            <Route path="/employees/add" element={<ProtectedRoute roles={['ADMIN']}><EmployeeForm /></ProtectedRoute>} />
-            <Route path="/employees/edit/:id" element={<ProtectedRoute roles={['ADMIN']}><EmployeeForm /></ProtectedRoute>} />
+            <Route path="/employees/view/:id" element={<ProtectedRoute roles={['ADMIN', 'EMPLOYEE']}><EmployeeProfile /></ProtectedRoute>} />
+            <Route path="/employees/add" element={<ProtectedRoute roles={['ADMIN', 'EMPLOYEE']}><EmployeeForm /></ProtectedRoute>} />
+            <Route path="/employees/edit/:id" element={<ProtectedRoute roles={['ADMIN', 'EMPLOYEE']}><EmployeeForm /></ProtectedRoute>} />
             <Route path="/interns" element={<ProtectedRoute roles={['ADMIN']}><InternList /></ProtectedRoute>} />
             <Route path="/interns/view/:id" element={<ProtectedRoute roles={['ADMIN', 'EMPLOYEE']}><InternProfile /></ProtectedRoute>} />
             <Route path="/interns/add" element={<ProtectedRoute roles={['ADMIN']}><InternForm /></ProtectedRoute>} />
@@ -85,6 +92,15 @@ function App() {
             <Route path="/employee-tasks" element={<ProtectedRoute roles={['EMPLOYEE']}><EmployeeTasks /></ProtectedRoute>} />
             <Route path="/employee-schedules" element={<ProtectedRoute roles={['EMPLOYEE']}><EmployeeSchedules /></ProtectedRoute>} />
             <Route path="/employee-profile" element={<ProtectedRoute roles={['EMPLOYEE']}><EmployeeMyProfile /></ProtectedRoute>} />
+
+            {/* General Manager Routes */}
+            <Route path="/gm-dashboard" element={<ProtectedRoute roles={['EMPLOYEE']}><GmDashboard /></ProtectedRoute>} />
+            <Route path="/gm-interns" element={<ProtectedRoute roles={['EMPLOYEE']}><GmInterns /></ProtectedRoute>} />
+            <Route path="/gm-projects" element={<ProtectedRoute roles={['EMPLOYEE']}><GmProjects /></ProtectedRoute>} />
+            <Route path="/gm-employees" element={<ProtectedRoute roles={['EMPLOYEE']}><GmEmployees /></ProtectedRoute>} />
+
+            {/* Deputy General Manager Routes */}
+            <Route path="/dgm-dashboard" element={<ProtectedRoute roles={['EMPLOYEE']}><DgmDashboard /></ProtectedRoute>} />
 
             {/* Catch-all 404 */}
             <Route path="*" element={<NotFound />} />

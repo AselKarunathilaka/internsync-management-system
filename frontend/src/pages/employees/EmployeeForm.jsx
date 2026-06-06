@@ -1,11 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
+import { AuthContext } from '../../context/AuthContext';
 import api from '../../api';
 
 const EmployeeForm = () => {
   const navigate = useNavigate();
   const { id } = useParams();
+  const { user } = useContext(AuthContext);
   const isEditing = !!id;
+  const isManager = user?.designation === 'General Manager' || user?.designation === 'Deputy General Manager';
+  const isAdmin = user?.roles?.some(r => r.authority === 'ROLE_ADMIN');
 
   const [formData, setFormData] = useState({
     fullName: '',
@@ -26,6 +30,14 @@ const EmployeeForm = () => {
   const designations = ['General Manager', 'Deputy General Manager', 'Senior Engineer', 'Engineer', 'HR Manager', 'Tech Lead'];
   const specializationsList = ['AI', 'BA', 'C#', 'CICD', 'Cloud', 'Finance', 'Flutter', 'FullStack', 'IOT', 'JAVA', 'Logistics', 'Marketing', 'MERN', 'PHP', 'PM', 'Python', 'QA', 'ReactJS', 'UIUX'];
 
+  const getAvailableSpecializations = (dept) => {
+    if (!dept) return specializationsList;
+    if (dept === 'Digital Labs') return ['IOT'];
+    if (dept === 'Human Capital') return ['Finance', 'Marketing', 'Logistics'];
+    return specializationsList.filter(s => !['IOT', 'Finance', 'Marketing', 'Logistics'].includes(s));
+  };
+
+  const availableSpecializations = getAvailableSpecializations(formData.department);
   const needsSpecialization = !['General Manager', 'Deputy General Manager'].includes(formData.designation);
 
   useEffect(() => {
@@ -56,8 +68,17 @@ const EmployeeForm = () => {
           setError("Failed to load employee data.");
           setLoading(false);
         });
+    } else if (isManager && user?.employeeId) {
+      // Fetch the GM/DGM's own employee profile to get their department
+      api.get(`/employees/${user.employeeId}`)
+        .then(res => {
+          if (res.data.department) {
+            setFormData(prev => ({ ...prev, department: res.data.department }));
+          }
+        })
+        .catch(err => console.error("Error fetching manager department", err));
     }
-  }, [id, isEditing]);
+  }, [id, isEditing, isManager, user]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -93,7 +114,11 @@ const EmployeeForm = () => {
       } else {
         await api.post('/auth/register-employee', formData);
       }
-      navigate('/employees');
+      if (isManager && !isAdmin) {
+        navigate('/gm-employees');
+      } else {
+        navigate('/employees');
+      }
     } catch (err) {
       console.error("Error saving employee", err);
       setError(err.response?.data?.message || "An error occurred while saving.");
@@ -112,8 +137,8 @@ const EmployeeForm = () => {
       </div>
 
       <div className="max-w-3xl mx-auto animate-fade-in space-y-6 pb-20">
-        <div className="flex items-center gap-4 mb-8">
-          <button onClick={() => navigate('/employees')} className="bg-white/40 hover:bg-white/60 text-slate-800 p-2 rounded-full backdrop-blur-xl transition-all shadow-sm">
+        <div className="flex items-center gap-4">
+          <button onClick={() => navigate(isManager && !isAdmin ? '/gm-employees' : '/employees')} className="bg-white/40 hover:bg-white/60 text-slate-800 p-3 rounded-full backdrop-blur-xl transition-all shadow-md">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
@@ -160,24 +185,33 @@ const EmployeeForm = () => {
               <div>
                 <div className="flex justify-between items-center">
                   <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Department *</label>
-                  {departments.length === 0 && (
+                  {departments.length === 0 && !isManager && (
                     <Link to="/departments/new" className="text-xs text-primary hover:underline font-bold">
                       + Create Department First
                     </Link>
                   )}
                 </div>
-                <select 
-                  className="form-select mt-1 shadow-sm" 
-                  name="department" 
-                  value={formData.department} 
-                  onChange={handleChange} 
-                  required
-                >
-                  <option value="" disabled>
-                    {departments.length === 0 ? "No departments available" : "Select Department"}
-                  </option>
-                  {departments.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
-                </select>
+                {isManager ? (
+                  <input 
+                    type="text" 
+                    className="form-input mt-1 shadow-sm bg-gray-100 text-gray-500" 
+                    value={formData.department} 
+                    readOnly 
+                  />
+                ) : (
+                  <select 
+                    className="form-select mt-1 shadow-sm" 
+                    name="department" 
+                    value={formData.department} 
+                    onChange={handleChange} 
+                    required
+                  >
+                    <option value="" disabled>
+                      {departments.length === 0 ? "No departments available" : "Select Department"}
+                    </option>
+                    {departments.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
+                  </select>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -219,8 +253,9 @@ const EmployeeForm = () => {
                     required={needsSpecialization}
                   >
                     <option value="" disabled>Select Specialization</option>
-                    {specializationsList.map(spec => <option key={spec} value={spec}>{spec}</option>)}
-                  </select>
+                    {availableSpecializations.map(spec => (
+                    <option key={spec} value={spec}>{spec}</option>
+                  ))}</select>
                 </div>
               )}
             </div>

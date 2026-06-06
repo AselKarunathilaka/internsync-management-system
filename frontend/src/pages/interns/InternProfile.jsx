@@ -129,6 +129,26 @@ const InternProfile = () => {
                 </div>
               </div>
             </div>
+
+            <div className="space-y-4 md:col-span-2">
+              <h4 className="text-xl font-bold text-purple-900 border-b border-purple-100 pb-2">Status & Assignment</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <p className="text-sm text-gray-500 font-bold">Stipend Type</p>
+                  <p className="text-gray-800 font-medium">{intern.stipendType || 'PENDING'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500 font-bold">Assignment Status</p>
+                  <p className="text-gray-800 font-medium">{intern.assignmentStatus ? intern.assignmentStatus.replace(/_/g, ' ') : 'PENDING_MANAGER_REVIEW'}</p>
+                </div>
+                {intern.assignedManagerId && (
+                  <div>
+                    <p className="text-sm text-gray-500 font-bold">Assigned GM ID</p>
+                    <p className="text-gray-800 font-medium text-xs">{intern.assignedManagerId}</p>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Assigned Projects */}

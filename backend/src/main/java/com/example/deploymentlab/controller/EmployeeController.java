@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -34,6 +35,25 @@ public class EmployeeController {
         this.userRepository = userRepository;
     }
 
+    private boolean hasAdminRole(Authentication auth) {
+        return auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+    }
+
+    private Employee getEmployeeProfile(Authentication auth) {
+        UserDetailsImpl userDetails = (UserDetailsImpl) auth.getPrincipal();
+        if (userDetails.getEmployeeId() == null) return null;
+        return employeeRepository.findById(userDetails.getEmployeeId()).orElse(null);
+    }
+
+    private boolean canManageEmployee(Authentication auth, String targetDepartment) {
+        if (hasAdminRole(auth)) return true;
+        Employee emp = getEmployeeProfile(auth);
+        if (emp == null) return false;
+        
+        boolean isManager = "General Manager".equalsIgnoreCase(emp.getDesignation()) || "Deputy General Manager".equalsIgnoreCase(emp.getDesignation());
+        return isManager && emp.getDepartment().equalsIgnoreCase(targetDepartment);
+    }
+
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
     public List<Employee> getAllEmployees() {
@@ -48,8 +68,13 @@ public class EmployeeController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPLOYEE')")
     public ResponseEntity<?> createEmployee(@Valid @RequestBody Employee employee) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (!canManageEmployee(auth, employee.getDepartment())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Error: You do not have permission to create employees in this department."));
+        }
+
         // Enforce specialization rules
         if (!employee.getDesignation().equals("General Manager") && !employee.getDesignation().equals("Deputy General Manager")) {
             if (employee.getSpecialization() == null || employee.getSpecialization().trim().isEmpty()) {
@@ -73,11 +98,21 @@ public class EmployeeController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPLOYEE')")
     public ResponseEntity<?> updateEmployee(@PathVariable String id, @Valid @RequestBody Employee employeeDetails) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         Optional<Employee> optionalEmployee = employeeRepository.findById(id);
         if (optionalEmployee.isPresent()) {
             Employee employee = optionalEmployee.get();
+            
+            if (!canManageEmployee(auth, employee.getDepartment())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Error: You do not have permission to edit this employee."));
+            }
+
+            if (!employee.getDepartment().equalsIgnoreCase(employeeDetails.getDepartment()) && !canManageEmployee(auth, employeeDetails.getDepartment())) {
+                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Error: You cannot move an employee to a department you do not manage."));
+            }
+
             employee.setFullName(employeeDetails.getFullName());
             employee.setEmail(employeeDetails.getEmail());
             employee.setDepartment(employeeDetails.getDepartment());
@@ -103,9 +138,16 @@ public class EmployeeController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> deleteEmployee(@PathVariable String id) {
-        if (employeeRepository.existsById(id)) {
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPLOYEE')")
+    public ResponseEntity<?> deleteEmployee(@PathVariable String id) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        Optional<Employee> optionalEmployee = employeeRepository.findById(id);
+        
+        if (optionalEmployee.isPresent()) {
+            Employee employee = optionalEmployee.get();
+            if (!canManageEmployee(auth, employee.getDepartment())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Error: You do not have permission to delete this employee."));
+            }
             employeeRepository.deleteById(id);
             return ResponseEntity.noContent().build();
         } else {

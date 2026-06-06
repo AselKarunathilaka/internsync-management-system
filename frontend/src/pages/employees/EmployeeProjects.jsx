@@ -1,7 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
+import { AuthContext } from '../../context/AuthContext';
+import { Link } from 'react-router-dom';
 import api from '../../api';
 
 const EmployeeProjects = () => {
+  const { user } = useContext(AuthContext);
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -36,7 +39,15 @@ const EmployeeProjects = () => {
         {error && <div className="bg-red-50 text-red-600 p-3 rounded-lg">{error}</div>}
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {loading ? (
+          {user?.designation === 'General Manager' || user?.designation === 'Deputy General Manager' ? (
+            <div className="col-span-full text-center p-12 bg-indigo-50 rounded-xl border border-indigo-100">
+              <h4 className="text-xl font-bold text-indigo-800 mb-2">Department-Level Responsibility</h4>
+              <p className="text-indigo-600">This role manages department-level operations and is not assigned directly to individual projects as a worker.</p>
+              <Link to={user.designation === 'General Manager' ? '/gm-projects' : '/dgm-dashboard'} className="btn btn-primary mt-4 inline-block">
+                Go to Department Projects
+              </Link>
+            </div>
+          ) : loading ? (
             <div className="animate-pulse space-y-4 col-span-full">
               {[1,2,3].map(i => <div key={i} className="h-40 bg-gray-200 rounded-xl"></div>)}
             </div>

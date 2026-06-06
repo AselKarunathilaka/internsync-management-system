@@ -7,6 +7,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.ArrayList;
 
 @Document(collection = "interns")
 public class Intern {
@@ -40,12 +42,19 @@ public class Intern {
     @NotBlank(message = "Status is required")
     private String status; // ACTIVE, COMPLETED, TERMINATED
 
+    private InternStipendType stipendType;
+    private InternAssignmentStatus assignmentStatus;
+    private String assignedManagerId;
+    private List<String> assignedProjectIds = new ArrayList<>();
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
     public Intern() {
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
+        this.stipendType = InternStipendType.PENDING;
+        this.assignmentStatus = InternAssignmentStatus.PENDING_MANAGER_REVIEW;
     }
 
     public String getId() { return id; }
@@ -86,4 +95,16 @@ public class Intern {
 
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+
+    public InternStipendType getStipendType() { return stipendType; }
+    public void setStipendType(InternStipendType stipendType) { this.stipendType = stipendType; }
+
+    public InternAssignmentStatus getAssignmentStatus() { return assignmentStatus; }
+    public void setAssignmentStatus(InternAssignmentStatus assignmentStatus) { this.assignmentStatus = assignmentStatus; }
+
+    public String getAssignedManagerId() { return assignedManagerId; }
+    public void setAssignedManagerId(String assignedManagerId) { this.assignedManagerId = assignedManagerId; }
+
+    public List<String> getAssignedProjectIds() { return assignedProjectIds; }
+    public void setAssignedProjectIds(List<String> assignedProjectIds) { this.assignedProjectIds = assignedProjectIds; }
 }

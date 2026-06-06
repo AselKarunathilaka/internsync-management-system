@@ -108,7 +108,15 @@ const EmployeeDashboard = () => {
         <div className="glass-card animate-slide-up" style={{ animationDelay: '100ms' }}>
           <h3 className="text-2xl font-bold text-slate-800 border-b border-gray-100 pb-4 mb-6">My Assigned Projects & Teams</h3>
           
-          {projects.length === 0 ? (
+          {profile.designation === 'General Manager' || profile.designation === 'Deputy General Manager' ? (
+            <div className="text-center p-8 bg-indigo-50 rounded-xl border border-indigo-100">
+              <h4 className="text-xl font-bold text-indigo-800 mb-2">Department-Level Responsibility</h4>
+              <p className="text-indigo-600">This role manages department-level operations and is not assigned directly to individual projects as a worker.</p>
+              <Link to={profile.designation === 'General Manager' ? '/gm-dashboard' : '/dgm-dashboard'} className="btn btn-primary mt-4 inline-block">
+                Go to Department Dashboard
+              </Link>
+            </div>
+          ) : projects.length === 0 ? (
             <div className="text-center p-8 bg-gray-50/50 rounded-xl border border-gray-100 text-gray-500 italic">
               You are not currently assigned to any active projects.
             </div>

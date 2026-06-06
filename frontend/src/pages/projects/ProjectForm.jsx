@@ -1,12 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { AuthContext } from '../../context/AuthContext';
 import api from '../../api';
 
 const ProjectForm = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useContext(AuthContext);
   const isEdit = Boolean(id);
-  
+  const isManager = user?.designation === 'General Manager' || user?.designation === 'Deputy General Manager';
+  const isAdmin = user?.roles?.some(r => r.authority === 'ROLE_ADMIN');
+
   const [formData, setFormData] = useState({
     projectCode: '',
     projectName: '',
@@ -28,10 +32,17 @@ const ProjectForm = () => {
   useEffect(() => {
     const fetchSelectData = async () => {
       try {
-        const [empRes, deptRes] = await Promise.all([
-          api.get('/employees'),
-          api.get('/departments')
-        ]);
+        let empRes;
+        if (user?.designation === 'General Manager') {
+            empRes = await api.get('/gm/department-employees');
+        } else if (user?.designation === 'Deputy General Manager') {
+            empRes = await api.get('/dgm/department-employees');
+        } else {
+            empRes = await api.get('/employees');
+        }
+        
+        const deptRes = await api.get('/departments');
+        
         setEmployees(empRes.data);
         setDepartments(deptRes.data);
       } catch (err) {
@@ -55,8 +66,17 @@ const ProjectForm = () => {
           setAssignedEmployeeIds(data.assignedEmployeeIds || []);
         })
         .catch(err => console.error("Error fetching project details", err));
+    } else if (isManager && user?.employeeId) {
+      // Fetch the GM/DGM's own employee profile to get their department
+      api.get(`/employees/${user.employeeId}`)
+        .then(res => {
+          if (res.data.department) {
+            setFormData(prev => ({ ...prev, department: res.data.department }));
+          }
+        })
+        .catch(err => console.error("Error fetching manager department", err));
     }
-  }, [id, isEdit]);
+  }, [id, isEdit, isManager, user]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -112,16 +132,22 @@ const ProjectForm = () => {
         navigate(`/projects/edit/${res.data.id}`);
         return;
       }
-      navigate('/projects');
+      if (isManager && !isAdmin) {
+        navigate('/gm-projects');
+      } else {
+        navigate('/projects');
+      }
     } catch (err) {
       console.error("Error saving project", err);
       setError(err.response?.data?.message || 'Failed to save project');
     }
   };
 
-  const eligibleEmployees = employees.filter(emp => 
-    !['General Manager', 'Deputy General Manager'].includes(emp.designation)
-  );
+  const eligibleEmployees = employees.filter(emp => {
+    const notGmOrDgm = !['General Manager', 'Deputy General Manager'].includes(emp.designation);
+    const matchesDept = formData.department ? emp.department === formData.department : true;
+    return notGmOrDgm && matchesDept;
+  });
 
   return (
     <>
@@ -171,10 +197,14 @@ const ProjectForm = () => {
               </div>
               <div>
                 <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Department *</label>
-                <select name="department" value={formData.department} onChange={handleChange} className="form-select mt-1 shadow-sm" required>
-                  <option value="" disabled>Select Department</option>
-                  {departments.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
-                </select>
+                {isManager ? (
+                  <input type="text" className="form-input mt-1 bg-gray-100 text-gray-500" value={formData.department} readOnly />
+                ) : (
+                  <select name="department" value={formData.department} onChange={handleChange} className="form-select mt-1 shadow-sm" required>
+                    <option value="" disabled>Select Department</option>
+                    {departments.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
+                  </select>
+                )}
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-bold text-gray-700 ml-1">Status *</label>

@@ -82,7 +82,10 @@ public class AuthController {
 
         if (userDetails.getEmployeeId() != null) {
             employeeRepository.findById(userDetails.getEmployeeId())
-                .ifPresent(emp -> response.put("designation", emp.getDesignation()));
+                .ifPresent(emp -> {
+                    response.put("designation", emp.getDesignation());
+                    response.put("department", emp.getDepartment());
+                });
         }
 
         return ResponseEntity.ok(response);
@@ -155,7 +158,10 @@ public class AuthController {
 
         if (userDetails.getEmployeeId() != null) {
             employeeRepository.findById(userDetails.getEmployeeId())
-                .ifPresent(emp -> response.put("designation", emp.getDesignation()));
+                .ifPresent(emp -> {
+                    response.put("designation", emp.getDesignation());
+                    response.put("department", emp.getDepartment());
+                });
         }
 
         return ResponseEntity.ok(response);

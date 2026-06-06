@@ -14,6 +14,11 @@ const Navbar = () => {
   const isAdmin = user?.roles?.some(r => r.authority === 'ROLE_ADMIN');
   const isIntern = user?.roles?.some(r => r.authority === 'ROLE_INTERN');
   const isEmployee = user?.roles?.some(r => r.authority === 'ROLE_EMPLOYEE');
+  
+  const designation = user?.designation;
+  const isGM = isEmployee && designation === 'General Manager';
+  const isDGM = isEmployee && designation === 'Deputy General Manager';
+  const isRegularEmployee = isEmployee && !isGM && !isDGM;
 
   return (
     <header className="glass-header">
@@ -49,7 +54,25 @@ const Navbar = () => {
                   <Link to="/log-book" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">Log Book</Link>
                 </>
               )}
-              {isEmployee && (
+              {isGM && (
+                <>
+                  <Link to="/gm-dashboard" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">Dept. Dashboard</Link>
+                  <Link to="/gm-interns" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">Dept. Interns</Link>
+                  <Link to="/gm-projects" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">Dept. Projects</Link>
+                  <Link to="/gm-employees" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">Dept. Employees</Link>
+                  <Link to="/employee-profile" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">My Profile</Link>
+                </>
+              )}
+              {isDGM && (
+                <>
+                  <Link to="/dgm-dashboard" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">Dept. Dashboard</Link>
+                  <Link to="/gm-interns" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">Dept. Interns</Link>
+                  <Link to="/gm-projects" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">Dept. Projects</Link>
+                  <Link to="/gm-employees" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">Dept. Employees</Link>
+                  <Link to="/employee-profile" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">My Profile</Link>
+                </>
+              )}
+              {isRegularEmployee && (
                 <>
                   <Link to="/employee-dashboard" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">Dashboard</Link>
                   <Link to="/employee-profile" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">My Profile</Link>

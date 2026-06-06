@@ -3,8 +3,11 @@ package com.example.deploymentlab.controller;
 import com.example.deploymentlab.config.UserDetailsImpl;
 import com.example.deploymentlab.model.Project;
 import com.example.deploymentlab.model.Employee;
+import com.example.deploymentlab.model.Intern;
+import com.example.deploymentlab.model.InternAssignmentStatus;
 import com.example.deploymentlab.repository.ProjectRepository;
 import com.example.deploymentlab.repository.EmployeeRepository;
+import com.example.deploymentlab.repository.InternRepository;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -24,10 +27,12 @@ public class ProjectController {
 
     private final ProjectRepository projectRepository;
     private final EmployeeRepository employeeRepository;
+    private final InternRepository internRepository;
 
-    public ProjectController(ProjectRepository projectRepository, EmployeeRepository employeeRepository) {
+    public ProjectController(ProjectRepository projectRepository, EmployeeRepository employeeRepository, InternRepository internRepository) {
         this.projectRepository = projectRepository;
         this.employeeRepository = employeeRepository;
+        this.internRepository = internRepository;
     }
 
     private boolean hasAdminRole(Authentication auth) {
@@ -156,6 +161,15 @@ public class ProjectController {
                     if (!project.getAssignedInternIds().contains(internId)) {
                         project.getAssignedInternIds().add(internId);
                     }
+                    // Sync the intern's own record
+                    internRepository.findById(internId).ifPresent(intern -> {
+                        if (!intern.getAssignedProjectIds().contains(id)) {
+                            intern.getAssignedProjectIds().add(id);
+                        }
+                        intern.setAssignmentStatus(InternAssignmentStatus.ASSIGNED_TO_PROJECT);
+                        intern.setUpdatedAt(LocalDateTime.now());
+                        internRepository.save(intern);
+                    });
                 }
                 project.setUpdatedAt(LocalDateTime.now());
                 projectRepository.save(project);
@@ -176,6 +190,16 @@ public class ProjectController {
             if (!canManageProject(auth, project.getDepartment())) {
                  return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Error: You do not have permission to manage this project."));
             }
+
+            // Sync the intern's own record
+            internRepository.findById(internId).ifPresent(intern -> {
+                intern.getAssignedProjectIds().remove(id);
+                if (intern.getAssignedProjectIds().isEmpty()) {
+                    intern.setAssignmentStatus(InternAssignmentStatus.PENDING_MANAGER_REVIEW);
+                }
+                intern.setUpdatedAt(LocalDateTime.now());
+                internRepository.save(intern);
+            });
 
             if (project.getAssignedInternIds().contains(internId)) {
                 project.getAssignedInternIds().remove(internId);

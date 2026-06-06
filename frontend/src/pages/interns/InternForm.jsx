@@ -33,6 +33,23 @@ const InternForm = () => {
   const [createAccount, setCreateAccount] = useState(false);
   const [error, setError] = useState('');
   
+  const resolveDepartment = (spec) => {
+    if (!spec) return 'Digital Platforms';
+    const s = spec.trim().toUpperCase();
+    if (s === 'IOT') return 'Digital Labs';
+    if (s === 'FINANCE' || s === 'MARKETING' || s === 'LOGISTICS') return 'Human Capital';
+    return 'Digital Platforms';
+  };
+
+  useEffect(() => {
+    if (formData.specialization) {
+      const dept = resolveDepartment(formData.specialization);
+      if (formData.department !== dept) {
+        setFormData(prev => ({ ...prev, department: dept }));
+      }
+    }
+  }, [formData.specialization]);
+  
   useEffect(() => {
     if (isEdit) {
       api.get(`/interns/${id}`)
@@ -129,7 +146,8 @@ const InternForm = () => {
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-bold text-gray-700 ml-1">Department *</label>
-                <input type="text" className="form-input" name="department" value={formData.department} onChange={handleChange} required placeholder="Digital Platforms" />
+                <input type="text" className="form-input bg-gray-100 text-gray-500" name="department" value={formData.department} readOnly placeholder="Auto-assigned based on Specialization" />
+                <p className="text-xs text-gray-500 ml-1">Department is assigned automatically based on specialization.</p>
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-bold text-gray-700 ml-1">Specialization *</label>
