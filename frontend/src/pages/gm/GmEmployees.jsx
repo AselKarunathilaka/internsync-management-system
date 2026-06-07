@@ -73,6 +73,7 @@ const GmEmployees = () => {
               <table className="w-full text-left border-collapse bg-white/50 backdrop-blur-md">
                 <thead>
                   <tr className="bg-gray-100/80 text-gray-600 text-xs uppercase tracking-wider">
+                    <th className="p-4 font-semibold">ID</th>
                     <th className="p-4 font-semibold">Name</th>
                     <th className="p-4 font-semibold">Email</th>
                     <th className="p-4 font-semibold">Designation</th>
@@ -83,6 +84,7 @@ const GmEmployees = () => {
                 <tbody className="divide-y divide-gray-100">
                   {employees.map((emp) => (
                     <tr key={emp.id} className="hover:bg-indigo-50/50 transition-colors duration-150 group">
+                      <td className="p-4 font-bold text-indigo-600">#{emp.employeeNumber || 'N/A'}</td>
                       <td className="p-4 font-bold text-gray-800">{emp.fullName}</td>
                       <td className="p-4 text-gray-600">{emp.email}</td>
                       <td className="p-4 text-gray-600">

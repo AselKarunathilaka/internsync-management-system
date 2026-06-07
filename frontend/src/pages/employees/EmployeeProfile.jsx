@@ -120,6 +120,7 @@ const EmployeeProfile = () => {
             </div>
             <div>
               <h3 className="text-3xl font-extrabold text-slate-800">{employee.fullName}</h3>
+              <p className="text-sm font-bold text-gray-500 mt-1">ID: #{employee.employeeNumber || 'N/A'}</p>
               <p className="text-indigo-600 font-bold text-lg mt-1">{employee.designation}</p>
               <p className="text-gray-500 font-medium">{employee.department}</p>
             </div>

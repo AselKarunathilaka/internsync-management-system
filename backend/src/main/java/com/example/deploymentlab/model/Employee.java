@@ -14,6 +14,8 @@ public class Employee {
     @Id
     private String id;
 
+    private String employeeNumber;
+
     @NotBlank(message = "Full name is required")
     private String fullName;
 
@@ -41,6 +43,9 @@ public class Employee {
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
+
+    public String getEmployeeNumber() { return employeeNumber; }
+    public void setEmployeeNumber(String employeeNumber) { this.employeeNumber = employeeNumber; }
 
     public String getFullName() { return fullName; }
     public void setFullName(String fullName) { this.fullName = fullName; }

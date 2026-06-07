@@ -196,6 +196,7 @@ const ProjectView = () => {
               <table className="w-full text-left border-collapse bg-white/50">
                 <thead>
                   <tr className="bg-indigo-50/80 text-indigo-800 text-xs uppercase tracking-wider">
+                    <th className="p-4 font-semibold">Emp #</th>
                     <th className="p-4 font-semibold">Name</th>
                     <th className="p-4 font-semibold">Designation</th>
                     <th className="p-4 font-semibold text-center">Action</th>
@@ -204,11 +205,12 @@ const ProjectView = () => {
                 <tbody className="divide-y divide-gray-100">
                   {assignedEmployees.length === 0 ? (
                     <tr>
-                      <td colSpan="3" className="text-center p-8 text-gray-500 italic">No employees assigned to this project.</td>
+                      <td colSpan="4" className="text-center p-8 text-gray-500 italic">No employees assigned to this project.</td>
                     </tr>
                   ) : (
                     assignedEmployees.map(emp => (
                       <tr key={emp.id} className="hover:bg-indigo-50/50 transition-colors">
+                        <td className="p-4 font-bold text-gray-700">#{emp.employeeNumber || 'N/A'}</td>
                         <td className="p-4 font-medium text-gray-800">{emp.fullName}</td>
                         <td className="p-4 text-gray-600">{emp.designation}</td>
                         <td className="p-4 text-center">

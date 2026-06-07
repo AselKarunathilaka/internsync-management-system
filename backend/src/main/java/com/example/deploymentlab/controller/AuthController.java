@@ -60,6 +60,15 @@ public class AuthController {
             userOpt = userRepository.findByEmail(username);
             if (userOpt.isPresent()) {
                 username = userOpt.get().getUsername();
+            } else {
+                // Check if it's an employee number
+                Optional<Employee> empOpt = employeeRepository.findByEmployeeNumber(username);
+                if (empOpt.isPresent() && empOpt.get().getUserId() != null) {
+                    Optional<User> uOpt = userRepository.findById(empOpt.get().getUserId());
+                    if (uOpt.isPresent()) {
+                        username = uOpt.get().getUsername();
+                    }
+                }
             }
         }
 
@@ -230,20 +239,36 @@ public class AuthController {
     @PostMapping("/register-employee")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> registerEmployeeUser(@Valid @RequestBody RegisterEmployeeRequest request) {
-        if (userRepository.existsByUsername(request.getUsername())) {
-            return ResponseEntity.badRequest().body(Map.of("message", "Error: Username is already taken!"));
-        }
-
-        if (userRepository.existsByEmail(request.getEmail())) {
-            return ResponseEntity.badRequest().body(Map.of("message", "Error: Email is already in use for user account!"));
+        if (request.isCreateLoginAccount()) {
+            if (request.getUsername() == null || request.getUsername().isBlank()) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Error: Username is required for login account!"));
+            }
+            if (request.getPassword() == null || request.getPassword().isBlank()) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Error: Password is required for login account!"));
+            }
+            if (userRepository.existsByUsername(request.getUsername())) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Error: Username is already taken!"));
+            }
+            if (userRepository.existsByEmail(request.getEmail())) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Error: Email is already in use for user account!"));
+            }
         }
 
         if (employeeRepository.existsByEmail(request.getEmail())) {
             return ResponseEntity.badRequest().body(Map.of("message", "Error: Email is already in use for employee profile!"));
         }
 
+        String empNum = request.getEmployeeNumber();
+        if (empNum == null || empNum.trim().isEmpty() || !empNum.matches("^00\\d{4}$")) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Error: Employee Number must be exactly 6 digits starting with 00."));
+        }
+        if (employeeRepository.existsByEmployeeNumber(empNum)) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Error: Employee Number is already in use."));
+        }
+
         // 1. Create Employee
         Employee employee = new Employee();
+        employee.setEmployeeNumber(empNum);
         employee.setFullName(request.getFullName());
         employee.setEmail(request.getEmail());
         employee.setDepartment(request.getDepartment());
@@ -259,21 +284,24 @@ public class AuthController {
 
         Employee savedEmployee = employeeRepository.save(employee);
 
-        // 2. Create User
-        User user = new User();
-        user.setUsername(request.getUsername());
-        user.setEmail(request.getEmail());
-        user.setPasswordHash(encoder.encode(request.getPassword()));
-        user.setRole("EMPLOYEE");
-        user.setEmployeeId(savedEmployee.getId());
-        
-        User savedUser = userRepository.save(user);
+        if (request.isCreateLoginAccount()) {
+            // 2. Create User
+            User user = new User();
+            user.setUsername(request.getUsername());
+            user.setEmail(request.getEmail());
+            user.setPasswordHash(encoder.encode(request.getPassword()));
+            user.setRole("EMPLOYEE");
+            user.setEmployeeId(savedEmployee.getId());
+            
+            User savedUser = userRepository.save(user);
 
-        // 3. Link User ID back to Employee
-        savedEmployee.setUserId(savedUser.getId());
-        employeeRepository.save(savedEmployee);
+            // 3. Link User ID back to Employee
+            savedEmployee.setUserId(savedUser.getId());
+            employeeRepository.save(savedEmployee);
+            return ResponseEntity.ok(Map.of("message", "Employee and user account registered successfully!"));
+        }
 
-        return ResponseEntity.ok(Map.of("message", "Employee and user account registered successfully!"));
+        return ResponseEntity.ok(Map.of("message", "Employee registered successfully without login account!"));
     }
 
     @PostMapping("/register")
@@ -311,13 +339,40 @@ public class AuthController {
             
             user.setRole("INTERN");
             user.setInternId(intern.getId());
+        } else if ("EMPLOYEE".equalsIgnoreCase(request.getRole())) {
+            if (request.getEmployeeNumber() == null || request.getEmployeeNumber().isBlank()) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Error: Employee Number is required for Employees."));
+            }
+            Optional<Employee> empOpt = employeeRepository.findByEmployeeNumber(request.getEmployeeNumber());
+            if (empOpt.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Error: Invalid Employee Number. No matching employee profile found."));
+            }
+            Employee employee = empOpt.get();
+
+            if (!employee.getEmail().equalsIgnoreCase(request.getEmail())) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Error: The email does not match the registered employee profile."));
+            }
+
+            if (userRepository.existsByEmployeeId(employee.getId())) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Error: A login account already exists for this employee profile."));
+            }
+
+            user.setRole("EMPLOYEE");
+            user.setEmployeeId(employee.getId());
         } else {
-            return ResponseEntity.badRequest().body(Map.of("message", "Error: Public registration only allowed for INTERN role."));
+            return ResponseEntity.badRequest().body(Map.of("message", "Error: Public registration only allowed for INTERN or EMPLOYEE roles."));
         }
 
         User savedUser = userRepository.save(user);
 
-        // Also update intern userId if the model supports it (optional depending on Intern model)
+        if ("EMPLOYEE".equalsIgnoreCase(request.getRole())) {
+            Optional<Employee> empOpt = employeeRepository.findByEmployeeNumber(request.getEmployeeNumber());
+            if (empOpt.isPresent()) {
+                Employee e = empOpt.get();
+                e.setUserId(savedUser.getId());
+                employeeRepository.save(e);
+            }
+        }
 
         return ResponseEntity.ok(Map.of("message", "User registered successfully!"));
     }
@@ -425,6 +480,7 @@ public class AuthController {
         private String role;
         
         private String internNumber;
+        private String employeeNumber;
 
         public String getUsername() { return username; }
         public void setUsername(String username) { this.username = username; }
@@ -436,6 +492,8 @@ public class AuthController {
         public void setRole(String role) { this.role = role; }
         public String getInternNumber() { return internNumber; }
         public void setInternNumber(String internNumber) { this.internNumber = internNumber; }
+        public String getEmployeeNumber() { return employeeNumber; }
+        public void setEmployeeNumber(String employeeNumber) { this.employeeNumber = employeeNumber; }
     }
 
     public static class UpdateProfileRequest {
@@ -455,11 +513,9 @@ public class AuthController {
     }
 
     public static class RegisterEmployeeRequest {
-        @NotBlank
         private String username;
         @NotBlank
         private String email;
-        @NotBlank
         private String password;
         @NotBlank
         private String fullName;
@@ -468,8 +524,10 @@ public class AuthController {
         @NotBlank
         private String designation;
         
+        private String employeeNumber;
         private String phoneNumber;
         private String specialization;
+        private boolean createLoginAccount;
 
         public String getUsername() { return username; }
         public void setUsername(String username) { this.username = username; }
@@ -477,12 +535,16 @@ public class AuthController {
         public void setEmail(String email) { this.email = email; }
         public String getPassword() { return password; }
         public void setPassword(String password) { this.password = password; }
+        public boolean isCreateLoginAccount() { return createLoginAccount; }
+        public void setCreateLoginAccount(boolean createLoginAccount) { this.createLoginAccount = createLoginAccount; }
         public String getFullName() { return fullName; }
         public void setFullName(String fullName) { this.fullName = fullName; }
         public String getDepartment() { return department; }
         public void setDepartment(String department) { this.department = department; }
         public String getDesignation() { return designation; }
         public void setDesignation(String designation) { this.designation = designation; }
+        public String getEmployeeNumber() { return employeeNumber; }
+        public void setEmployeeNumber(String employeeNumber) { this.employeeNumber = employeeNumber; }
         public String getPhoneNumber() { return phoneNumber; }
         public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
         public String getSpecialization() { return specialization; }

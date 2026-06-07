@@ -11,8 +11,16 @@ const Login = () => {
   const { login } = useContext(AuthContext);
   const navigate = useNavigate();
 
+  const [employeeLoginMethod, setEmployeeLoginMethod] = useState('ID'); // 'ID' or 'EMAIL'
+
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleLoginTypeChange = (type) => {
+    setLoginType(type);
+    setFormData({ usernameOrEmail: '', password: '' });
+    setError('');
   };
 
   const handleSubmit = async (e) => {
@@ -38,7 +46,7 @@ const Login = () => {
         navigate('/intern-dashboard');
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Invalid username or password');
+      setError(err.response?.data?.message || 'Invalid credentials');
     }
   };
 
@@ -58,41 +66,69 @@ const Login = () => {
         </h2>
         <p className="text-center text-sm font-medium text-gray-500 mb-6">Sign in to your account</p>
 
-        {error && <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-4 text-center font-semibold">{error}</div>}
+        {error && <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-4 text-center font-semibold animate-fade-in">{error}</div>}
         
-        <div className="flex bg-gray-100 p-1 rounded-xl mb-6">
+        <div className="flex bg-gray-100 p-1 rounded-xl mb-6 shadow-inner">
           <button
             type="button"
-            className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${loginType === 'ADMIN' ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-            onClick={() => setLoginType('ADMIN')}
+            className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${loginType === 'ADMIN' ? 'bg-white text-primary shadow-sm ring-1 ring-black/5' : 'text-gray-500 hover:text-gray-700'}`}
+            onClick={() => handleLoginTypeChange('ADMIN')}
           >
             Admin
           </button>
           <button
             type="button"
-            className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${loginType === 'EMPLOYEE' ? 'bg-white text-teal-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-            onClick={() => setLoginType('EMPLOYEE')}
+            className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${loginType === 'EMPLOYEE' ? 'bg-white text-teal-600 shadow-sm ring-1 ring-black/5' : 'text-gray-500 hover:text-gray-700'}`}
+            onClick={() => handleLoginTypeChange('EMPLOYEE')}
           >
             Employee
           </button>
           <button
             type="button"
-            className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${loginType === 'INTERN' ? 'bg-white text-purple-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-            onClick={() => setLoginType('INTERN')}
+            className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${loginType === 'INTERN' ? 'bg-white text-purple-600 shadow-sm ring-1 ring-black/5' : 'text-gray-500 hover:text-gray-700'}`}
+            onClick={() => handleLoginTypeChange('INTERN')}
           >
             Intern
           </button>
         </div>
 
+        {loginType === 'EMPLOYEE' && (
+          <div className="flex bg-gray-50 p-1 rounded-lg mb-5 w-5/6 mx-auto border border-gray-200 shadow-inner">
+            <button
+              type="button"
+              className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${employeeLoginMethod === 'ID' ? 'bg-white text-teal-600 shadow-sm border border-gray-100' : 'text-gray-400 hover:text-gray-600'}`}
+              onClick={() => { setEmployeeLoginMethod('ID'); setFormData({ ...formData, usernameOrEmail: '' }); }}
+            >
+              Use Employee ID
+            </button>
+            <button
+              type="button"
+              className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${employeeLoginMethod === 'EMAIL' ? 'bg-white text-teal-600 shadow-sm border border-gray-100' : 'text-gray-400 hover:text-gray-600'}`}
+              onClick={() => { setEmployeeLoginMethod('EMAIL'); setFormData({ ...formData, usernameOrEmail: '' }); }}
+            >
+              Use Email / Username
+            </button>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="text-sm font-bold text-gray-700 ml-1">Username or Email</label>
+          <div className="animate-fade-in">
+            <label className="text-sm font-bold text-gray-700 ml-1">
+              {loginType === 'ADMIN' ? 'Username or Email' : 
+               loginType === 'EMPLOYEE' ? (employeeLoginMethod === 'ID' ? 'Employee ID' : 'Username or Email') :
+               'Username or Email'}
+            </label>
             <input 
               type="text" 
               name="usernameOrEmail" 
               value={formData.usernameOrEmail} 
               onChange={handleChange} 
-              className="form-input" 
+              className={`form-input mt-1 ${loginType === 'EMPLOYEE' && employeeLoginMethod === 'ID' ? 'font-mono text-lg tracking-wider' : ''}`}
+              placeholder={
+                loginType === 'ADMIN' ? 'e.g. admin' :
+                loginType === 'EMPLOYEE' ? (employeeLoginMethod === 'ID' ? 'e.g. 001234' : 'name@example.com') :
+                'e.g. johndoe or name@example.com'
+              }
               required 
             />
           </div>

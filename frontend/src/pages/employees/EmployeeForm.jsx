@@ -18,9 +18,11 @@ const EmployeeForm = () => {
     designation: 'Engineer',
     phoneNumber: '',
     specialization: '',
+    employeeNumber: '',
     username: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    createLoginAccount: false
   });
   const [loading, setLoading] = useState(isEditing);
   const [saving, setSaving] = useState(false);
@@ -57,6 +59,7 @@ const EmployeeForm = () => {
             designation: res.data.designation || 'Engineer',
             phoneNumber: res.data.phoneNumber || '',
             specialization: res.data.specialization || '',
+            employeeNumber: res.data.employeeNumber || '',
             username: '',
             password: '',
             confirmPassword: ''
@@ -84,12 +87,16 @@ const EmployeeForm = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  const handleCheckboxChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.checked });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
     setError('');
 
-    if (!isEditing && formData.password !== formData.confirmPassword) {
+    if (!isEditing && formData.createLoginAccount && formData.password !== formData.confirmPassword) {
       setError("Passwords do not match!");
       setSaving(false);
       return;
@@ -109,7 +116,8 @@ const EmployeeForm = () => {
           department: formData.department,
           designation: formData.designation,
           phoneNumber: formData.phoneNumber,
-          specialization: needsSpecialization ? formData.specialization : null
+          specialization: needsSpecialization ? formData.specialization : null,
+          employeeNumber: formData.employeeNumber
         });
       } else {
         await api.post('/auth/register-employee', formData);
@@ -153,6 +161,20 @@ const EmployeeForm = () => {
             
             <h3 className="text-xl font-bold text-indigo-900 border-b border-indigo-100 pb-2">Employee Details</h3>
             
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-gray-700 ml-1">Employee Number *</label>
+              <input 
+                type="text" 
+                className="form-input" 
+                name="employeeNumber" 
+                value={formData.employeeNumber} 
+                onChange={handleChange} 
+                required 
+                placeholder="e.g. 001234"
+              />
+              <p className="text-xs text-gray-500 ml-1 mt-1">Must be a unique 6-digit number starting with 00.</p>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <label className="text-sm font-bold text-gray-700 ml-1">Full Name *</label>
@@ -262,51 +284,67 @@ const EmployeeForm = () => {
 
             {!isEditing && (
               <>
-                <h3 className="text-xl font-bold text-indigo-900 border-b border-indigo-100 pb-2 mt-8">Login Account Details</h3>
+                <div className="flex items-center justify-between border-b border-indigo-100 pb-2 mt-8 mb-4">
+                  <h3 className="text-xl font-bold text-indigo-900">Login Account Details</h3>
+                  <label className="flex items-center cursor-pointer gap-2">
+                    <span className="text-sm font-bold text-gray-700">Create Login Account?</span>
+                    <input 
+                      type="checkbox" 
+                      className="form-checkbox h-5 w-5 text-indigo-600 rounded" 
+                      name="createLoginAccount"
+                      checked={formData.createLoginAccount}
+                      onChange={handleCheckboxChange}
+                    />
+                  </label>
+                </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-gray-700 ml-1">Username *</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
-                      name="username" 
-                      value={formData.username} 
-                      onChange={handleChange} 
-                      required 
-                      placeholder="johndoe"
-                    />
-                  </div>
-                </div>
+                {formData.createLoginAccount && (
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                      <div className="space-y-2">
+                        <label className="text-sm font-bold text-gray-700 ml-1">Username *</label>
+                        <input 
+                          type="text" 
+                          className="form-input" 
+                          name="username" 
+                          value={formData.username} 
+                          onChange={handleChange} 
+                          required={formData.createLoginAccount} 
+                          placeholder="johndoe"
+                        />
+                      </div>
+                    </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-gray-700 ml-1">Password *</label>
-                    <input 
-                      type="password" 
-                      className="form-input" 
-                      name="password" 
-                      value={formData.password} 
-                      onChange={handleChange} 
-                      required 
-                      placeholder="••••••••"
-                      minLength="6"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-gray-700 ml-1">Confirm Password *</label>
-                    <input 
-                      type="password" 
-                      className="form-input" 
-                      name="confirmPassword" 
-                      value={formData.confirmPassword} 
-                      onChange={handleChange} 
-                      required 
-                      placeholder="••••••••"
-                      minLength="6"
-                    />
-                  </div>
-                </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <label className="text-sm font-bold text-gray-700 ml-1">Password *</label>
+                        <input 
+                          type="password" 
+                          className="form-input" 
+                          name="password" 
+                          value={formData.password} 
+                          onChange={handleChange} 
+                          required={formData.createLoginAccount} 
+                          placeholder="••••••••"
+                          minLength="6"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-bold text-gray-700 ml-1">Confirm Password *</label>
+                        <input 
+                          type="password" 
+                          className="form-input" 
+                          name="confirmPassword" 
+                          value={formData.confirmPassword} 
+                          onChange={handleChange} 
+                          required={formData.createLoginAccount} 
+                          placeholder="••••••••"
+                          minLength="6"
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
               </>
             )}
 

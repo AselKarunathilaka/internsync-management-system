@@ -236,6 +236,7 @@ const ProjectForm = () => {
                 <table className="w-full text-left border-collapse bg-white/50">
                   <thead>
                     <tr className="bg-indigo-50/80 text-indigo-800 text-xs uppercase tracking-wider">
+                      <th className="p-4 font-semibold">Emp #</th>
                       <th className="p-4 font-semibold">Employee Name</th>
                       <th className="p-4 font-semibold">Designation</th>
                       <th className="p-4 font-semibold text-right">Action</th>
@@ -246,6 +247,7 @@ const ProjectForm = () => {
                       const isAssigned = assignedEmployeeIds.includes(emp.id);
                       return (
                         <tr key={emp.id} className="hover:bg-indigo-50/50 transition-colors">
+                          <td className="p-4 font-bold text-gray-700">#{emp.employeeNumber || 'N/A'}</td>
                           <td className="p-4 font-medium text-gray-700">{emp.fullName}</td>
                           <td className="p-4 text-gray-600">{emp.designation}</td>
                           <td className="p-4 text-right">

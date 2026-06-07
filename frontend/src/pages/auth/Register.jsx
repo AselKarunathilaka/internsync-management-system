@@ -9,25 +9,17 @@ const Register = () => {
     password: '',
     confirmPassword: '',
     role: 'INTERN',
-    internNumber: ''
+    internNumber: '',
+    employeeNumber: ''
   });
-  const [departments, setDepartments] = useState([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   
   const navigate = useNavigate();
 
-  useEffect(() => {
-    api.get('/departments')
-      .then(res => setDepartments(res.data))
-      .catch(err => console.error("Error fetching departments", err));
-  }, []);
-
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
-
-
 
   const handleRegister = async (e) => {
     e.preventDefault();
@@ -43,41 +35,23 @@ const Register = () => {
       return;
     }
 
-    if (formData.role === 'EMPLOYEE') {
-      if (!formData.fullName || !formData.department || !formData.designation) {
-        setError("Full Name, Department, and Designation are required for Employee registration.");
-        return;
-      }
-      const needsSpecialization = !['General Manager', 'Deputy General Manager'].includes(formData.designation);
-      if (needsSpecialization && !formData.specialization) {
-        setError("Specialization is required for your designation.");
-        return;
-      }
+    if (formData.role === 'EMPLOYEE' && !formData.employeeNumber) {
+      setError("Employee Number is required for Employee registration.");
+      return;
     }
 
     setLoading(true);
     try {
-      let payload;
-      let endpoint = '/auth/register';
-
-    if (formData.role === 'EMPLOYEE') {
-      endpoint = '/auth/register-employee-public';
-      payload = {
+      const payload = {
         username: formData.username,
         email: formData.email,
-        password: formData.password
+        password: formData.password,
+        role: formData.role,
+        internNumber: formData.role === 'INTERN' ? formData.internNumber : undefined,
+        employeeNumber: formData.role === 'EMPLOYEE' ? formData.employeeNumber : undefined
       };
-      } else {
-        payload = {
-          username: formData.username,
-          email: formData.email,
-          password: formData.password,
-          role: formData.role,
-          internNumber: formData.internNumber
-        };
-      }
 
-      await api.post(endpoint, payload);
+      await api.post('/auth/register', payload);
       alert("Registration successful! You can now log in.");
       navigate('/login');
     } catch (err) {
@@ -131,10 +105,16 @@ const Register = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {formData.role === 'EMPLOYEE' && (
-              <div className="md:col-span-2">
-                <p className="text-xs text-teal-600 font-bold mb-4 bg-teal-50 p-3 rounded-lg border border-teal-100">
-                  Note: Employee registration is only available for employees already added by an administrator. Please use the same email address that exists in your employee profile.
+              <div className="md:col-span-2 animate-fade-in">
+                <p className="text-xs text-indigo-600 font-bold mb-4 bg-indigo-50 p-3 rounded-lg border border-indigo-100">
+                  Note: Employee registration is only available for employees already added by an administrator. Please use your 6-digit employee number and the same email address that exists in your employee profile.
                 </p>
+                <label className="text-xs font-bold text-indigo-600 uppercase tracking-wider ml-1">Employee Number *</label>
+                <input 
+                  type="text" name="employeeNumber"
+                  className="form-input mt-1 shadow-sm border-indigo-200 focus:border-indigo-500" 
+                  placeholder="e.g. 001234" value={formData.employeeNumber} onChange={handleChange} required={formData.role === 'EMPLOYEE'}
+                />
               </div>
             )}
 

@@ -114,6 +114,7 @@ public class InternController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteIntern(@PathVariable String id) {
         if (internRepository.existsById(id)) {
+            userRepository.findByInternId(id).ifPresent(user -> userRepository.delete(user));
             internRepository.deleteById(id);
             return ResponseEntity.noContent().build();
         } else {

@@ -60,7 +60,20 @@ public class EmployeeController {
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'EMPLOYEE')")
     public List<Employee> getAllEmployees() {
-        return employeeRepository.findAll();
+        List<Employee> employees = employeeRepository.findAll();
+        boolean needsSave = false;
+        for (Employee emp : employees) {
+            if (emp.getEmployeeNumber() == null || emp.getEmployeeNumber().isBlank()) {
+                String empNum;
+                do {
+                    int randomDigits = new java.util.Random().nextInt(10000);
+                    empNum = String.format("00%04d", randomDigits);
+                } while (employeeRepository.existsByEmployeeNumber(empNum));
+                emp.setEmployeeNumber(empNum);
+                employeeRepository.save(emp);
+            }
+        }
+        return employees;
     }
 
     @GetMapping("/supervisors")
@@ -86,7 +99,15 @@ public class EmployeeController {
         } else {
             employee.setSpecialization(null); // Clear it
         }
-        
+        String empNum = employee.getEmployeeNumber();
+        if (empNum == null || empNum.trim().isEmpty() || !empNum.matches("^00\\d{4}$")) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Error: Employee Number must be exactly 6 digits starting with 00."));
+        }
+        if (employeeRepository.existsByEmployeeNumber(empNum)) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Error: Employee Number is already in use."));
+        }
+        employee.setEmployeeNumber(empNum);
+
         employee.setCreatedAt(LocalDateTime.now());
         employee.setUpdatedAt(LocalDateTime.now());
         Employee savedEmployee = employeeRepository.save(employee);
@@ -151,6 +172,14 @@ public class EmployeeController {
             if (!canManageEmployee(auth, employee.getDepartment())) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Error: You do not have permission to delete this employee."));
             }
+            
+            // Delete associated user login account if it exists
+            if (employee.getUserId() != null) {
+                userRepository.deleteById(employee.getUserId());
+            } else {
+                userRepository.findByEmployeeId(id).ifPresent(user -> userRepository.delete(user));
+            }
+
             employeeRepository.deleteById(id);
             return ResponseEntity.noContent().build();
         } else {
