@@ -24,9 +24,16 @@ const Login = () => {
 
 
   const handleChange = (e) => {
+    let value = e.target.value;
+    
+    // If we're on the Employee ID tab, only allow numbers
+    if (e.target.name === 'usernameOrEmail' && loginType === 'EMPLOYEE' && employeeLoginMethod === 'ID') {
+      value = value.replace(/\D/g, ''); // Strip non-numeric characters
+    }
+
     setFormData((prev) => ({
       ...prev,
-      [e.target.name]: e.target.value,
+      [e.target.name]: value,
     }));
   };
 
@@ -70,8 +77,21 @@ const Login = () => {
     e.preventDefault();
     setError('');
 
+    // Explicit manual validation for Employee ID
+    if (loginType === 'EMPLOYEE' && employeeLoginMethod === 'ID') {
+      const isSixDigits = /^00\d{4}$/.test(formData.usernameOrEmail);
+      if (!isSixDigits) {
+        setError('Employee ID must be exactly 6 digits starting with 00');
+        return;
+      }
+    }
+
     try {
-      const response = await api.post('/auth/login', formData);
+      const payload = {
+        ...formData,
+        loginMethod: loginType === 'EMPLOYEE' ? employeeLoginMethod : 'USERNAME',
+      };
+      const response = await api.post('/auth/login', payload);
 
       login(response.data.token, response.data);
       navigateAfterLogin(response.data);
@@ -237,6 +257,14 @@ const Login = () => {
                     : 'e.g. johndoe or name@example.com'
               }
               required
+              {...(loginType === 'EMPLOYEE' && employeeLoginMethod === 'ID'
+                ? {
+                    pattern: '^00\\d{4}$',
+                    title: 'Employee ID must be exactly 6 digits starting with 00',
+                    maxLength: 6,
+                    minLength: 6,
+                  }
+                : {})}
             />
           </div>
 

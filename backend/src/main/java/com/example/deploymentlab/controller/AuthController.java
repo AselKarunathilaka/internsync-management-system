@@ -64,19 +64,28 @@ public class AuthController {
     public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
         // Resolve username from email if needed
         String username = loginRequest.getUsernameOrEmail();
-        Optional<User> userOpt = userRepository.findByUsername(username);
-        if (userOpt.isEmpty()) {
-            userOpt = userRepository.findByEmail(username);
-            if (userOpt.isPresent()) {
-                username = userOpt.get().getUsername();
+        String method = loginRequest.getLoginMethod();
+        Optional<User> userOpt = Optional.empty();
+
+        if ("ID".equalsIgnoreCase(method)) {
+            // Strictly check employee number
+            Optional<Employee> empOpt = employeeRepository.findByEmployeeNumber(username);
+            if (empOpt.isPresent() && empOpt.get().getUserId() != null) {
+                userOpt = userRepository.findById(empOpt.get().getUserId());
+                if (userOpt.isPresent()) {
+                    username = userOpt.get().getUsername();
+                } else {
+                    return ResponseEntity.status(401).body(Map.of("message", "Error: User account not found for this Employee ID."));
+                }
             } else {
-                // Check if it's an employee number
-                Optional<Employee> empOpt = employeeRepository.findByEmployeeNumber(username);
-                if (empOpt.isPresent() && empOpt.get().getUserId() != null) {
-                    Optional<User> uOpt = userRepository.findById(empOpt.get().getUserId());
-                    if (uOpt.isPresent()) {
-                        username = uOpt.get().getUsername();
-                    }
+                return ResponseEntity.status(401).body(Map.of("message", "Error: Invalid Employee ID."));
+            }
+        } else {
+            userOpt = userRepository.findByUsername(username);
+            if (userOpt.isEmpty()) {
+                userOpt = userRepository.findByEmail(username);
+                if (userOpt.isPresent()) {
+                    username = userOpt.get().getUsername();
                 }
             }
         }
@@ -528,10 +537,14 @@ public class AuthController {
         @NotBlank
         private String password;
 
+        private String loginMethod;
+
         public String getUsernameOrEmail() { return usernameOrEmail; }
         public void setUsernameOrEmail(String usernameOrEmail) { this.usernameOrEmail = usernameOrEmail; }
         public String getPassword() { return password; }
         public void setPassword(String password) { this.password = password; }
+        public String getLoginMethod() { return loginMethod; }
+        public void setLoginMethod(String loginMethod) { this.loginMethod = loginMethod; }
     }
 
     public static class MicrosoftLoginRequest {

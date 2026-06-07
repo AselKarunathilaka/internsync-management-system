@@ -21,9 +21,16 @@ public class MicrosoftTokenService {
             @Value("${azure.client-id}") String clientId) {
         this.issuerUri = issuerUri;
         this.clientId = clientId;
-        if (issuerUri != null && !issuerUri.isEmpty()) {
-            this.jwtDecoder = NimbusJwtDecoder.withIssuerLocation(issuerUri).build();
+        if (issuerUri != null && !issuerUri.isEmpty() && !issuerUri.contains("com//v2.0")) {
+            JwtDecoder tempDecoder = null;
+            try {
+                tempDecoder = NimbusJwtDecoder.withIssuerLocation(issuerUri).build();
+            } catch (Exception e) {
+                System.err.println("Warning: Microsoft OAuth2 decoder failed to initialize. Azure Login will not work. Error: " + e.getMessage());
+            }
+            this.jwtDecoder = tempDecoder;
         } else {
+            System.err.println("Warning: Microsoft OAuth2 is not fully configured (missing tenant ID). Azure Login will not work.");
             this.jwtDecoder = null;
         }
     }
