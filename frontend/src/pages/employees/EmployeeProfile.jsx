@@ -10,6 +10,13 @@ const EmployeeProfile = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  // Account Creation Modal State
+  const [showAccountModal, setShowAccountModal] = useState(false);
+  const [accountForm, setAccountForm] = useState({ username: '', email: '', password: '', confirmPassword: '' });
+  const [accountLoading, setAccountLoading] = useState(false);
+  const [accountError, setAccountError] = useState('');
+  const [accountSuccess, setAccountSuccess] = useState('');
+
   useEffect(() => {
     const fetchProfile = async () => {
       try {
@@ -39,6 +46,30 @@ const EmployeeProfile = () => {
   }
 
   const isGM = employee.designation === 'General Manager' || employee.designation === 'Deputy General Manager';
+  const canEdit = true; // Typically role-based, assume admin for now
+
+  const handleCreateAccount = async (e) => {
+    e.preventDefault();
+    setAccountError('');
+    setAccountSuccess('');
+    if (accountForm.password !== accountForm.confirmPassword) {
+      setAccountError('Passwords do not match.');
+      return;
+    }
+    setAccountLoading(true);
+    try {
+      await api.post(`/employees/${id}/create-account`, accountForm);
+      setAccountSuccess('Login account created successfully!');
+      
+      // Update employee state locally to reflect the new account
+      setEmployee({ ...employee, userId: 'new-id' });
+      setTimeout(() => setShowAccountModal(false), 2000);
+    } catch (err) {
+      setAccountError(err.response?.data?.message || 'Failed to create account.');
+    } finally {
+      setAccountLoading(false);
+    }
+  };
 
   return (
     <>
@@ -56,12 +87,28 @@ const EmployeeProfile = () => {
             </button>
             <h2 className="text-4xl font-extrabold text-slate-800 drop-shadow-sm tracking-tight">Employee Profile</h2>
           </div>
-          <Link to={`/employees/edit/${employee.id}`} className="btn btn-primary shadow-sm flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-            </svg>
-            Edit Profile
-          </Link>
+          {canEdit && (
+            <div className="flex gap-2">
+              <button onClick={() => {
+                  setAccountForm({ username: '', email: employee.email, password: '', confirmPassword: '' });
+                  setShowAccountModal(true);
+                  setAccountError('');
+                  setAccountSuccess('');
+                }} 
+                className="btn bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                </svg>
+                Create Login Account
+              </button>
+              <Link to={`/employees/edit/${employee.id}`} className="btn btn-primary shadow-sm flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                </svg>
+                Edit Profile
+              </Link>
+            </div>
+          )}
         </div>
 
         <div className="glass-card animate-slide-up space-y-8">
@@ -153,6 +200,42 @@ const EmployeeProfile = () => {
 
         </div>
       </div>
+
+      {showAccountModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fade-in">
+          <div className="bg-white rounded-xl shadow-xl p-8 max-w-md w-full relative">
+            <button onClick={() => setShowAccountModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+            <h3 className="text-2xl font-bold text-slate-800 mb-6">Create Login Account</h3>
+            
+            {accountError && <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm mb-4">{accountError}</div>}
+            {accountSuccess && <div className="bg-green-50 text-green-600 p-3 rounded-lg text-sm mb-4">{accountSuccess}</div>}
+            
+            <form onSubmit={handleCreateAccount} className="space-y-4">
+              <div>
+                <label className="text-sm font-bold text-gray-700">Username *</label>
+                <input type="text" required className="form-input mt-1" value={accountForm.username} onChange={e => setAccountForm({...accountForm, username: e.target.value})} />
+              </div>
+              <div>
+                <label className="text-sm font-bold text-gray-700">Email *</label>
+                <input type="email" required className="form-input mt-1 bg-gray-100" readOnly value={accountForm.email} />
+              </div>
+              <div>
+                <label className="text-sm font-bold text-gray-700">Temporary Password *</label>
+                <input type="password" required className="form-input mt-1" minLength={8} value={accountForm.password} onChange={e => setAccountForm({...accountForm, password: e.target.value})} />
+              </div>
+              <div>
+                <label className="text-sm font-bold text-gray-700">Confirm Password *</label>
+                <input type="password" required className="form-input mt-1" minLength={8} value={accountForm.confirmPassword} onChange={e => setAccountForm({...accountForm, confirmPassword: e.target.value})} />
+              </div>
+              <button type="submit" disabled={accountLoading} className="btn w-full bg-indigo-600 text-white mt-6 py-2">
+                {accountLoading ? 'Creating...' : 'Create Account'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </>
   );
 };

@@ -28,7 +28,8 @@ const InternForm = () => {
 
   const [accountData, setAccountData] = useState({
     username: '',
-    password: ''
+    password: '',
+    confirmPassword: ''
   });
   const [createAccount, setCreateAccount] = useState(false);
   const [error, setError] = useState('');
@@ -85,13 +86,17 @@ const InternForm = () => {
       }
 
       if (createAccount && !isEdit) {
+        if (accountData.password !== accountData.confirmPassword) {
+            setError('Passwords do not match.');
+            return;
+        }
         // Create user account for this intern
         try {
-          await api.post('/auth/create-intern-user', {
+          await api.post(`/interns/${internId}/create-account`, {
             username: accountData.username,
             email: formData.email,
             password: accountData.password,
-            internId: internId
+            confirmPassword: accountData.confirmPassword
           });
         } catch (accErr) {
           setError(accErr.response?.data?.message || 'Error creating intern account, but intern was saved.');
@@ -197,6 +202,10 @@ const InternForm = () => {
                     <div className="space-y-2">
                       <label className="text-sm font-bold text-gray-700 ml-1">Temporary Password *</label>
                       <input type="password" className="form-input" name="password" value={accountData.password} onChange={handleAccountChange} required={createAccount} placeholder="Min 8 chars" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-bold text-gray-700 ml-1">Confirm Password *</label>
+                      <input type="password" className="form-input" name="confirmPassword" value={accountData.confirmPassword} onChange={handleAccountChange} required={createAccount} placeholder="Min 8 chars" />
                     </div>
                   </div>
                 )}

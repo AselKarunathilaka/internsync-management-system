@@ -22,4 +22,18 @@ public class DepartmentHelper {
                 return DepartmentName.DIGITAL_PLATFORMS;
         }
     }
+    public static String normalizeDepartment(String value) {
+        if (value == null) return "UNKNOWN";
+        String val = value.trim().toUpperCase();
+        if (val.contains("PLATFORM") || val.equals("DIGITAL_PLATFORMS")) {
+            return "DIGITAL_PLATFORMS";
+        }
+        if (val.contains("LAB") || val.equals("DIGITAL_LABS")) {
+            return "DIGITAL_LABS";
+        }
+        if (val.contains("HUMAN") || val.contains("CAPITAL") || val.equals("HUMAN_CAPITAL")) {
+            return "HUMAN_CAPITAL";
+        }
+        return val.replace(" ", "_");
+    }
 }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../../api';
 
@@ -8,13 +8,8 @@ const Register = () => {
     email: '',
     password: '',
     confirmPassword: '',
-    role: 'ADMIN',
-    internNumber: '',
-    fullName: '',
-    department: '',
-    designation: '',
-    phoneNumber: '',
-    specialization: ''
+    role: 'INTERN',
+    internNumber: ''
   });
   const [departments, setDepartments] = useState([]);
   const [error, setError] = useState('');
@@ -32,20 +27,7 @@ const Register = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const designations = [
-    "General Manager",
-    "Deputy General Manager",
-    "Senior Engineer",
-    "Engineer",
-    "HR Manager",
-    "Tech Lead"
-  ];
 
-  const specializationsList = [
-    'AI', 'BA', 'C#', 'CICD', 'Cloud', 'Finance', 'Flutter', 'FullStack', 
-    'IOT', 'JAVA', 'Logistics', 'Marketing', 'MERN', 'PHP', 'PM', 
-    'Python', 'QA', 'ReactJS', 'UIUX'
-  ];
 
   const handleRegister = async (e) => {
     e.preventDefault();
@@ -78,18 +60,13 @@ const Register = () => {
       let payload;
       let endpoint = '/auth/register';
 
-      if (formData.role === 'EMPLOYEE') {
-        endpoint = '/auth/register-employee';
-        payload = {
-          username: formData.username,
-          email: formData.email,
-          password: formData.password,
-          fullName: formData.fullName,
-          department: formData.department,
-          designation: formData.designation,
-          phoneNumber: formData.phoneNumber,
-          specialization: formData.specialization
-        };
+    if (formData.role === 'EMPLOYEE') {
+      endpoint = '/auth/register-employee-public';
+      payload = {
+        username: formData.username,
+        email: formData.email,
+        password: formData.password
+      };
       } else {
         payload = {
           username: formData.username,
@@ -110,7 +87,7 @@ const Register = () => {
     }
   };
 
-  const needsSpecialization = formData.role === 'EMPLOYEE' && !['General Manager', 'Deputy General Manager'].includes(formData.designation);
+
 
   return (
     <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-gradient-to-br from-indigo-50 to-blue-50 py-12">
@@ -138,10 +115,10 @@ const Register = () => {
           <div className="flex bg-gray-100 p-1 rounded-xl mb-6">
             <button
               type="button"
-              className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${formData.role === 'ADMIN' ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-              onClick={() => setFormData({...formData, role: 'ADMIN', internNumber: ''})}
+              className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${formData.role === 'INTERN' ? 'bg-white text-purple-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+              onClick={() => setFormData({...formData, role: 'INTERN'})}
             >
-              Admin
+              Intern
             </button>
             <button
               type="button"
@@ -150,80 +127,28 @@ const Register = () => {
             >
               Employee
             </button>
-            <button
-              type="button"
-              className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${formData.role === 'INTERN' ? 'bg-white text-purple-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-              onClick={() => setFormData({...formData, role: 'INTERN'})}
-            >
-              Intern
-            </button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {formData.role === 'EMPLOYEE' && (
-              <>
-                <div className="md:col-span-2">
-                  <label className="text-xs font-bold text-teal-600 uppercase tracking-wider ml-1">Full Name *</label>
-                  <input 
-                    type="text" name="fullName"
-                    className="form-input mt-1 shadow-sm border-teal-200 focus:border-teal-500" 
-                    placeholder="e.g. Jane Doe" value={formData.fullName} onChange={handleChange} required
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-teal-600 uppercase tracking-wider ml-1">Designation *</label>
-                  <select name="designation" value={formData.designation} onChange={handleChange} className="form-select mt-1 shadow-sm border-teal-200 focus:border-teal-500" required>
-                    <option value="" disabled>Select Designation</option>
-                    {designations.map(d => <option key={d} value={d}>{d}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <div className="flex justify-between items-center">
-                    <label className="text-xs font-bold text-teal-600 uppercase tracking-wider ml-1">Department *</label>
-                    {departments.length === 0 && (
-                      <span className="text-[10px] text-red-500 font-bold ml-1">Admin must create departments first</span>
-                    )}
-                  </div>
-                  <select name="department" value={formData.department} onChange={handleChange} className="form-select mt-1 shadow-sm border-teal-200 focus:border-teal-500" required>
-                    <option value="" disabled>
-                      {departments.length === 0 ? "No departments available" : "Select Department"}
-                    </option>
-                    {departments.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
-                  </select>
-                </div>
-                {needsSpecialization && (
-                  <div className="md:col-span-2 animate-fade-in">
-                    <label className="text-xs font-bold text-teal-600 uppercase tracking-wider ml-1">Specialization *</label>
-                    <select 
-                      name="specialization"
-                      className="form-select mt-1 shadow-sm border-teal-200 focus:border-teal-500" 
-                      value={formData.specialization} onChange={handleChange} required={needsSpecialization}
-                    >
-                      <option value="" disabled>Select Specialization</option>
-                      {specializationsList.map(spec => <option key={spec} value={spec}>{spec}</option>)}
-                    </select>
-                  </div>
-                )}
-                <div className="md:col-span-2">
-                  <label className="text-xs font-bold text-teal-600 uppercase tracking-wider ml-1">Phone Number</label>
-                  <input 
-                    type="text" name="phoneNumber"
-                    className="form-input mt-1 shadow-sm border-teal-200 focus:border-teal-500" 
-                    placeholder="+1 234 567 890" value={formData.phoneNumber} onChange={handleChange}
-                  />
-                </div>
-              </>
+              <div className="md:col-span-2">
+                <p className="text-xs text-teal-600 font-bold mb-4 bg-teal-50 p-3 rounded-lg border border-teal-100">
+                  Note: Employee registration is only available for employees already added by an administrator. Please use the same email address that exists in your employee profile.
+                </p>
+              </div>
             )}
 
             {formData.role === 'INTERN' && (
               <div className="md:col-span-2 animate-fade-in">
+                <p className="text-xs text-purple-600 font-bold mb-4 bg-purple-50 p-3 rounded-lg border border-purple-100">
+                  Note: Intern registration is only available for interns already added by an administrator. Please use your intern number and registered email address to create your login account.
+                </p>
                 <label className="text-xs font-bold text-purple-600 uppercase tracking-wider ml-1">Intern Number *</label>
                 <input 
                   type="text" name="internNumber"
                   className="form-input mt-1 shadow-sm border-purple-200 focus:border-purple-500" 
                   placeholder="e.g. 3539" value={formData.internNumber} onChange={handleChange} required={formData.role === 'INTERN'}
                 />
-                <p className="text-[10px] text-gray-400 mt-1 ml-1 font-medium">We need this to link to your existing intern profile.</p>
               </div>
             )}
 

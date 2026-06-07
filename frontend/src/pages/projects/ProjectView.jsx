@@ -39,14 +39,26 @@ const ProjectView = () => {
         setAssignedEmployees(assignedEmps);
 
         if (isEmployee) {
-          const empRes = await api.get('/employees/me');
-          setEmployeeProfile(empRes.data);
+          setEmployeeProfile({
+            designation: user?.designation,
+            department: user?.department
+          });
         }
 
         setLoading(false);
       } catch (err) {
-        console.error("Error fetching project details", err);
-        setError("Failed to load project details.");
+        if (import.meta.env.DEV) {
+          console.error("Error fetching project details", err);
+        }
+        if (err.response?.status === 403) {
+          setError("You do not have permission to view this project.");
+        } else if (err.response?.status === 404) {
+          setError("Project not found.");
+        } else if (err.response?.status >= 500) {
+          setError("Server error while loading project.");
+        } else {
+          setError("Failed to load project details.");
+        }
         setLoading(false);
       }
     };
@@ -65,6 +77,21 @@ const ProjectView = () => {
     return false;
   };
 
+  const handleBack = () => {
+    if (isAdmin) {
+      navigate('/projects');
+    } else if (isEmployee && user?.designation) {
+      const desig = user.designation;
+      if (desig === 'General Manager' || desig === 'Deputy General Manager') {
+        navigate('/gm-projects');
+      } else {
+        navigate('/dashboard');
+      }
+    } else {
+      navigate('/dashboard');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-[50vh]">
@@ -74,7 +101,22 @@ const ProjectView = () => {
   }
 
   if (error || !project) {
-    return <div className="text-center text-red-500 mt-10 text-xl font-bold">{error || "Project not found"}</div>;
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center p-4">
+        <div className="text-center p-8 bg-white/80 backdrop-blur-xl rounded-3xl border border-red-100 max-w-lg mx-auto shadow-2xl animate-fade-in">
+          <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <svg className="w-10 h-10 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h3 className="text-3xl font-extrabold text-slate-800 mb-3 drop-shadow-sm">Access Restricted</h3>
+          <p className="text-gray-600 font-medium mb-8 text-lg">{error || "Project not found or you don't have permission to view it."}</p>
+          <button onClick={() => navigate('/projects')} className="btn bg-slate-800 text-white hover:bg-slate-900 px-8 py-3 rounded-xl shadow-lg w-full font-bold text-lg transition-all hover:scale-[1.02]">
+            Return to Projects
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -86,7 +128,7 @@ const ProjectView = () => {
       <div className="animate-fade-in space-y-6 max-w-5xl mx-auto pb-20">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <button onClick={() => navigate('/projects')} className="bg-white/40 hover:bg-white/60 text-slate-800 p-3 rounded-full backdrop-blur-xl transition-all shadow-md">
+            <button onClick={handleBack} className="bg-white/40 hover:bg-white/60 text-slate-800 p-3 rounded-full backdrop-blur-xl transition-all shadow-md">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
               </svg>

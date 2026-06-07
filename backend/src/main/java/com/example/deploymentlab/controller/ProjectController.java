@@ -8,6 +8,7 @@ import com.example.deploymentlab.model.InternAssignmentStatus;
 import com.example.deploymentlab.repository.ProjectRepository;
 import com.example.deploymentlab.repository.EmployeeRepository;
 import com.example.deploymentlab.repository.InternRepository;
+import com.example.deploymentlab.service.DepartmentHelper;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -51,7 +52,7 @@ public class ProjectController {
         if (emp == null) return false;
         
         boolean isGmOrDgm = "General Manager".equalsIgnoreCase(emp.getDesignation()) || "Deputy General Manager".equalsIgnoreCase(emp.getDesignation());
-        return isGmOrDgm && emp.getDepartment().equalsIgnoreCase(projectDepartment);
+        return isGmOrDgm && DepartmentHelper.normalizeDepartment(emp.getDepartment()).equals(DepartmentHelper.normalizeDepartment(projectDepartment));
     }
 
     private boolean canDeleteProject(Authentication auth, String projectDepartment) {
@@ -60,7 +61,7 @@ public class ProjectController {
         if (emp == null) return false;
         
         boolean isGm = "General Manager".equalsIgnoreCase(emp.getDesignation());
-        return isGm && emp.getDepartment().equalsIgnoreCase(projectDepartment);
+        return isGm && DepartmentHelper.normalizeDepartment(emp.getDepartment()).equals(DepartmentHelper.normalizeDepartment(projectDepartment));
     }
 
     @GetMapping
@@ -88,10 +89,45 @@ public class ProjectController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'EMPLOYEE')")
-    public ResponseEntity<Project> getProjectById(@PathVariable String id) {
-        Optional<Project> project = projectRepository.findById(id);
-        return project.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPLOYEE', 'INTERN')")
+    public ResponseEntity<?> getProjectById(@PathVariable String id) {
+        Optional<Project> optionalProject = projectRepository.findById(id);
+        if (optionalProject.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        
+        Project project = optionalProject.get();
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        
+        if (hasAdminRole(auth)) {
+            return ResponseEntity.ok(project);
+        }
+        
+        UserDetailsImpl userDetails = (UserDetailsImpl) auth.getPrincipal();
+        
+        // If INTERN, can only view their assigned projects
+        if (auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_INTERN"))) {
+            if (project.getAssignedInternIds() != null && project.getAssignedInternIds().contains(userDetails.getInternId())) {
+                return ResponseEntity.ok(project);
+            }
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Error: You do not have permission to view this project."));
+        }
+        
+        // If EMPLOYEE
+        Employee emp = getEmployeeProfile(auth);
+        if (emp != null) {
+            boolean isGmOrDgm = "General Manager".equalsIgnoreCase(emp.getDesignation()) || "Deputy General Manager".equalsIgnoreCase(emp.getDesignation());
+            if (isGmOrDgm && DepartmentHelper.normalizeDepartment(emp.getDepartment()).equals(DepartmentHelper.normalizeDepartment(project.getDepartment()))) {
+                return ResponseEntity.ok(project);
+            }
+            
+            // Regular employee assigned check
+            if (project.getAssignedEmployeeIds() != null && project.getAssignedEmployeeIds().contains(emp.getId())) {
+                return ResponseEntity.ok(project);
+            }
+        }
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Error: You do not have permission to view this project."));
     }
 
     @PutMapping("/{id}")

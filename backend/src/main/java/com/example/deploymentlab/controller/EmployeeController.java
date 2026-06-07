@@ -13,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -28,11 +29,13 @@ public class EmployeeController {
     private final EmployeeRepository employeeRepository;
     private final ProjectRepository projectRepository;
     private final UserRepository userRepository;
+    private final PasswordEncoder encoder;
 
-    public EmployeeController(EmployeeRepository employeeRepository, ProjectRepository projectRepository, UserRepository userRepository) {
+    public EmployeeController(EmployeeRepository employeeRepository, ProjectRepository projectRepository, UserRepository userRepository, PasswordEncoder encoder) {
         this.employeeRepository = employeeRepository;
         this.projectRepository = projectRepository;
         this.userRepository = userRepository;
+        this.encoder = encoder;
     }
 
     private boolean hasAdminRole(Authentication auth) {
@@ -55,7 +58,7 @@ public class EmployeeController {
     }
 
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPLOYEE')")
     public List<Employee> getAllEmployees() {
         return employeeRepository.findAll();
     }
@@ -153,6 +156,63 @@ public class EmployeeController {
         } else {
             return ResponseEntity.notFound().build();
         }
+    }
+
+    @PostMapping("/{id}/create-account")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> createEmployeeAccount(@PathVariable String id, @Valid @RequestBody CreateAccountRequest request) {
+        Optional<Employee> optionalEmployee = employeeRepository.findById(id);
+        if (optionalEmployee.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "Employee not found."));
+        }
+
+        Employee employee = optionalEmployee.get();
+
+        if (userRepository.existsByEmployeeId(employee.getId())) {
+            return ResponseEntity.badRequest().body(Map.of("message", "An account already exists for this employee."));
+        }
+
+        if (userRepository.existsByUsername(request.getUsername())) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Username is already taken."));
+        }
+
+        if (userRepository.existsByEmail(request.getEmail())) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Email is already in use for a login account."));
+        }
+
+        User user = new User();
+        user.setUsername(request.getUsername());
+        user.setEmail(request.getEmail());
+        user.setPasswordHash(encoder.encode(request.getPassword()));
+        user.setRole("EMPLOYEE");
+        user.setEmployeeId(employee.getId());
+        User savedUser = userRepository.save(user);
+
+        // Link User ID back to Employee
+        employee.setUserId(savedUser.getId());
+        employeeRepository.save(employee);
+
+        return ResponseEntity.ok(Map.of("message", "Login account created successfully for employee."));
+    }
+
+    public static class CreateAccountRequest {
+        @jakarta.validation.constraints.NotBlank
+        private String username;
+        @jakarta.validation.constraints.NotBlank
+        private String email;
+        @jakarta.validation.constraints.NotBlank
+        private String password;
+        @jakarta.validation.constraints.NotBlank
+        private String confirmPassword;
+
+        public String getUsername() { return username; }
+        public void setUsername(String username) { this.username = username; }
+        public String getEmail() { return email; }
+        public void setEmail(String email) { this.email = email; }
+        public String getPassword() { return password; }
+        public void setPassword(String password) { this.password = password; }
+        public String getConfirmPassword() { return confirmPassword; }
+        public void setConfirmPassword(String confirmPassword) { this.confirmPassword = confirmPassword; }
     }
 
     @GetMapping("/me")

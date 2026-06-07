@@ -47,7 +47,8 @@ const InternList = () => {
     const term = search.toLowerCase();
     const matchesSearch = 
       intern.internNumber.toLowerCase().includes(term) || 
-      intern.fullName.toLowerCase().includes(term);
+      intern.fullName.toLowerCase().includes(term) ||
+      (intern.email && intern.email.toLowerCase().includes(term));
     const matchesSpec = specializationFilter ? intern.specialization === specializationFilter : true;
     const matchesDept = departmentFilter ? intern.department === departmentFilter : true;
     const matchesStipend = stipendFilter ? intern.stipendType === stipendFilter : true;
@@ -75,13 +76,14 @@ const InternList = () => {
     doc.text(`Specialization Filter: ${specializationFilter || 'All'}  |  Search Query: ${search || 'None'}`, 14, 32);
     doc.text(`Total Records Found: ${filteredInterns.length}`, 14, 38);
 
-    const tableColumn = ["Intern #", "Name", "Spec.", "Dept", "University", "Status", "Stipend", "Assignment"];
+    const tableColumn = ["Intern #", "Name", "Email", "Spec.", "Dept", "University", "Status", "Stipend", "Assignment"];
     const tableRows = [];
 
     filteredInterns.forEach(intern => {
       tableRows.push([
         intern.internNumber,
         intern.fullName,
+        intern.email || 'N/A',
         intern.specialization || 'N/A',
         intern.department || 'N/A',
         intern.university || 'N/A',
@@ -135,7 +137,7 @@ const InternList = () => {
               <input 
                 type="text" 
                 className="form-input pl-10" 
-                placeholder="Search by ID or Name..." 
+                placeholder="Search by ID, Name, or Email..." 
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -193,15 +195,12 @@ const InternList = () => {
               <table className="w-full text-left border-collapse bg-white/50">
                 <thead>
                   <tr className="bg-gray-100/80 text-gray-600 text-xs uppercase tracking-wider">
-                    <th className="p-4 font-semibold">Intern #</th>
-                    <th className="p-4 font-semibold">Name</th>
-                    <th className="p-4 font-semibold">Specialization</th>
-                    <th className="p-4 font-semibold">Department</th>
-                    <th className="p-4 font-semibold">University</th>
-                    <th className="p-4 font-semibold">Status</th>
-                    <th className="p-4 font-semibold">Stipend</th>
-                    <th className="p-4 font-semibold">Assignment</th>
-                    <th className="p-4 font-semibold text-center">Actions</th>
+                    <th className="p-3 font-semibold w-12">#</th>
+                    <th className="p-3 font-semibold">Name & Email</th>
+                    <th className="p-3 font-semibold">Dept & Spec</th>
+                    <th className="p-3 font-semibold">Status/Stipend</th>
+                    <th className="p-3 font-semibold">Assignment</th>
+                    <th className="p-3 font-semibold text-center w-24">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -210,34 +209,26 @@ const InternList = () => {
                   ) : (
                     filteredInterns.map((intern, idx) => (
                       <tr key={intern.id} className="hover:bg-indigo-50/50 transition-colors duration-200 animate-fade-in" style={{ animationDelay: `${idx * 50}ms` }}>
-                        <td className="p-4 font-bold text-gray-800">{intern.internNumber}</td>
-                        <td className="p-4 font-medium text-gray-700">{intern.fullName}</td>
+                        <td className="p-4 font-bold text-gray-800 text-base">{intern.internNumber}</td>
                         <td className="p-4">
-                          <span className="bg-white border border-gray-200 text-gray-700 px-3 py-1 rounded-full text-xs font-semibold shadow-sm">
-                            {intern.specialization || 'N/A'}
-                          </span>
+                          <p className="font-bold text-gray-800 text-base">{intern.fullName}</p>
+                          <p className="text-sm text-gray-500">{intern.email || 'N/A'}</p>
                         </td>
                         <td className="p-4">
-                          <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-extrabold tracking-wide uppercase shadow-sm border ${getDepartmentStyle(intern.department)}`}>
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 opacity-80" viewBox="0 0 20 20" fill="currentColor">
-                              <path fillRule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 110 2h-3a1 1 0 01-1-1v-2a1 1 0 00-1-1H9a1 1 0 00-1 1v2a1 1 0 01-1 1H4a1 1 0 110-2V4zm3 1h2v2H7V5zm2 4H7v2h2V9zm2-4h2v2h-2V5zm2 4h-2v2h2V9z" clipRule="evenodd" />
-                            </svg>
-                            {intern.department || 'N/A'}
-                          </span>
+                          <p className="text-sm font-bold text-indigo-700">{intern.department || 'N/A'}</p>
+                          <p className="text-sm text-gray-500">{intern.specialization || 'N/A'}</p>
                         </td>
-                        <td className="p-4 text-gray-600">{intern.university}</td>
                         <td className="p-4">
-                          <span className={`px-3 py-1.5 rounded-full text-xs font-bold shadow-sm border ${
-                            intern.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 
-                            intern.status === 'COMPLETED' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-red-50 text-red-700 border-red-200'
+                          <span className={`inline-block px-2 py-0.5 rounded text-xs font-bold ${
+                            intern.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'
                           }`}>
                             {intern.status}
                           </span>
+                          <span className="inline-block ml-1 px-2 py-0.5 rounded text-xs font-bold bg-amber-100 text-amber-700">
+                            {intern.stipendType || 'PENDING'}
+                          </span>
                         </td>
-                        <td className="p-4 text-xs font-semibold text-gray-600">
-                          {intern.stipendType || 'PENDING'}
-                        </td>
-                        <td className="p-4 text-xs font-semibold text-gray-600">
+                        <td className="p-4 text-sm font-semibold text-gray-600">
                           {intern.assignmentStatus ? intern.assignmentStatus.replace(/_/g, ' ') : 'PENDING'}
                         </td>
                         <td className="p-4 text-center">

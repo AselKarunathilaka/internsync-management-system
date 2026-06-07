@@ -297,17 +297,66 @@ public class AuthController {
             }
             java.util.List<Intern> interns = internRepository.findByInternNumber(request.getInternNumber());
             if (interns.isEmpty()) {
-                return ResponseEntity.badRequest().body(Map.of("message", "Error: Invalid Intern Number. No matching intern found."));
+                return ResponseEntity.badRequest().body(Map.of("message", "Error: Invalid Intern Number. No matching intern profile found."));
             }
+            Intern intern = interns.get(0);
+            
+            if (!intern.getEmail().equalsIgnoreCase(request.getEmail())) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Error: The email does not match the registered intern profile."));
+            }
+            
+            if (userRepository.existsByInternId(intern.getId())) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Error: A login account already exists for this intern profile."));
+            }
+            
             user.setRole("INTERN");
-            user.setInternId(interns.get(0).getId());
+            user.setInternId(intern.getId());
         } else {
             return ResponseEntity.badRequest().body(Map.of("message", "Error: Public registration only allowed for INTERN role."));
         }
 
-        userRepository.save(user);
+        User savedUser = userRepository.save(user);
+
+        // Also update intern userId if the model supports it (optional depending on Intern model)
 
         return ResponseEntity.ok(Map.of("message", "User registered successfully!"));
+    }
+
+    @PostMapping("/register-employee-public")
+    public ResponseEntity<?> registerEmployeePublicUser(@Valid @RequestBody RegisterEmployeePublicRequest request) {
+        if (userRepository.existsByUsername(request.getUsername())) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Error: Username is already taken!"));
+        }
+
+        if (userRepository.existsByEmail(request.getEmail())) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Error: Email is already in use for a login account!"));
+        }
+
+        Optional<Employee> optionalEmployee = employeeRepository.findByEmail(request.getEmail());
+        if (optionalEmployee.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Error: No employee profile found with this email. Please contact an Administrator to create your employee profile first."));
+        }
+
+        Employee employee = optionalEmployee.get();
+        
+        if (userRepository.existsByEmployeeId(employee.getId())) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Error: A login account already exists for this employee profile."));
+        }
+
+        User user = new User();
+        user.setUsername(request.getUsername());
+        user.setEmail(request.getEmail());
+        user.setPasswordHash(encoder.encode(request.getPassword()));
+        user.setRole("EMPLOYEE");
+        user.setEmployeeId(employee.getId());
+
+        User savedUser = userRepository.save(user);
+
+        // Link User ID back to Employee
+        employee.setUserId(savedUser.getId());
+        employeeRepository.save(employee);
+
+        return ResponseEntity.ok(Map.of("message", "Employee login account created successfully!"));
     }
 
     // DTOs
@@ -438,5 +487,21 @@ public class AuthController {
         public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
         public String getSpecialization() { return specialization; }
         public void setSpecialization(String specialization) { this.specialization = specialization; }
+    }
+
+    public static class RegisterEmployeePublicRequest {
+        @NotBlank
+        private String username;
+        @NotBlank
+        private String email;
+        @NotBlank
+        private String password;
+
+        public String getUsername() { return username; }
+        public void setUsername(String username) { this.username = username; }
+        public String getEmail() { return email; }
+        public void setEmail(String email) { this.email = email; }
+        public String getPassword() { return password; }
+        public void setPassword(String password) { this.password = password; }
     }
 }
