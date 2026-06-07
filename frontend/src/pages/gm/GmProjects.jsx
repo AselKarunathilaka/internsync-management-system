@@ -1,8 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { Link } from 'react-router-dom';
+import { AuthContext } from '../../context/AuthContext';
 import api from '../../api';
+import { isProxyUser } from '../../utils/authHelpers';
 
 const GmProjects = () => {
+  const { user } = useContext(AuthContext);
+  const isProxy = isProxyUser(user);
   const [projects, setProjects] = useState([]);
   const [interns, setInterns] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -60,7 +64,9 @@ const GmProjects = () => {
             <h2 className="text-4xl font-extrabold text-slate-800 tracking-tight">Department Projects</h2>
             <p className="text-gray-500 mt-2">View active projects and manage allocated interns.</p>
           </div>
-          <Link to="/projects/new" className="btn btn-success shadow-sm">+ Create Project</Link>
+          {!isProxy && (
+            <Link to="/projects/new" className="btn btn-success shadow-sm">+ Create Project</Link>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -121,18 +127,22 @@ const GmProjects = () => {
                   </div>
                   
                   <div className="mt-4 pt-4 border-t border-gray-100 flex justify-end gap-2">
-                    <Link 
-                      to={`/projects/edit/${project.id}`} 
-                      className="btn btn-outline border-indigo-200 text-indigo-700 hover:bg-indigo-50 py-1.5 px-3 text-xs"
-                    >
-                      Edit Project
-                    </Link>
-                    <button 
-                      onClick={() => handleDeleteProject(project.id)}
-                      className="btn btn-outline border-red-200 text-red-700 hover:bg-red-50 py-1.5 px-3 text-xs"
-                    >
-                      Delete
-                    </button>
+                    {!isProxy && (
+                      <>
+                        <Link 
+                          to={`/projects/edit/${project.id}`} 
+                          className="btn btn-outline border-indigo-200 text-indigo-700 hover:bg-indigo-50 py-1.5 px-3 text-xs"
+                        >
+                          Edit Project
+                        </Link>
+                        <button 
+                          onClick={() => handleDeleteProject(project.id)}
+                          className="btn btn-outline border-red-200 text-red-700 hover:bg-red-50 py-1.5 px-3 text-xs"
+                        >
+                          Delete
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               );

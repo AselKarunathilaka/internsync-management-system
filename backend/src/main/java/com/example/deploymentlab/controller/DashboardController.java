@@ -8,6 +8,7 @@ import com.example.deploymentlab.repository.EmployeeRepository;
 import com.example.deploymentlab.repository.InternRepository;
 import com.example.deploymentlab.repository.ProjectRepository;
 import com.example.deploymentlab.config.UserDetailsImpl;
+import com.example.deploymentlab.service.DepartmentAuthorityService;
 import com.example.deploymentlab.service.DepartmentHelper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -35,6 +36,9 @@ public class DashboardController {
 
     @Autowired
     private ProjectRepository projectRepository;
+
+    @Autowired
+    private DepartmentAuthorityService authorityService;
 
     private Employee getEmployeeProfile(Authentication auth) {
         UserDetailsImpl userDetails = (UserDetailsImpl) auth.getPrincipal();
@@ -109,8 +113,8 @@ public class DashboardController {
     public ResponseEntity<?> getGmDashboard() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         Employee emp = getEmployeeProfile(auth);
-        if (emp == null || !"General Manager".equalsIgnoreCase(emp.getDesignation())) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Access Denied: Only General Managers can access this dashboard."));
+        if (emp == null || !authorityService.canViewDepartment(auth, emp.getDepartment())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Access Denied: Unauthorized to view this department dashboard."));
         }
         return ResponseEntity.ok(generateDashboardData(emp));
     }
@@ -120,8 +124,8 @@ public class DashboardController {
     public ResponseEntity<?> getDgmDashboard() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         Employee emp = getEmployeeProfile(auth);
-        if (emp == null || !"Deputy General Manager".equalsIgnoreCase(emp.getDesignation())) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Access Denied: Only Deputy General Managers can access this dashboard."));
+        if (emp == null || !authorityService.canViewDepartment(auth, emp.getDepartment())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Access Denied: Unauthorized to view this department dashboard."));
         }
         return ResponseEntity.ok(generateDashboardData(emp));
     }

@@ -27,6 +27,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
+import com.example.deploymentlab.service.MicrosoftTokenService;
+import org.springframework.beans.factory.annotation.Value;
+
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
@@ -38,10 +41,15 @@ public class AuthController {
     private final PasswordResetTokenRepository tokenRepository;
     private final InternRepository internRepository;
     private final EmployeeRepository employeeRepository;
+    private final MicrosoftTokenService microsoftTokenService;
+
+    @Value("${app.local-email-domain:example.com}")
+    private String localEmailDomain;
 
     public AuthController(AuthenticationManager authenticationManager, UserRepository userRepository,
                           PasswordEncoder encoder, JwtUtils jwtUtils, PasswordResetTokenRepository tokenRepository, 
-                          InternRepository internRepository, EmployeeRepository employeeRepository) {
+                          InternRepository internRepository, EmployeeRepository employeeRepository,
+                          MicrosoftTokenService microsoftTokenService) {
         this.authenticationManager = authenticationManager;
         this.userRepository = userRepository;
         this.encoder = encoder;
@@ -49,6 +57,7 @@ public class AuthController {
         this.tokenRepository = tokenRepository;
         this.internRepository = internRepository;
         this.employeeRepository = employeeRepository;
+        this.microsoftTokenService = microsoftTokenService;
     }
 
     @PostMapping("/login")
@@ -97,6 +106,95 @@ public class AuthController {
                 });
         }
 
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/microsoft")
+    public ResponseEntity<?> authenticateMicrosoft(@Valid @RequestBody MicrosoftLoginRequest request) {
+        MicrosoftTokenService.MicrosoftUserInfo msInfo = microsoftTokenService.validateAndExtract(request.getIdToken());
+        
+        Optional<User> userOpt = userRepository.findByEntraObjectId(msInfo.oid());
+        
+        if (userOpt.isEmpty() && msInfo.email() != null) {
+            userOpt = userRepository.findByEntraEmailIgnoreCase(msInfo.email());
+        }
+        
+        if (userOpt.isEmpty() && msInfo.email() != null) {
+            userOpt = userRepository.findByEmailIgnoreCase(msInfo.email());
+        }
+
+        if (userOpt.isEmpty() && msInfo.email() != null && msInfo.email().contains("@")) {
+            String localPart = msInfo.email().substring(0, msInfo.email().indexOf("@"));
+            String mappedEmail = localPart + "@" + localEmailDomain;
+            userOpt = userRepository.findByEmailIgnoreCase(mappedEmail);
+        }
+        
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.status(403).body(Map.of("message", "Microsoft login succeeded, but no linked InternSync account was found."));
+        }
+        
+        User user = userOpt.get();
+        if (!"EMPLOYEE".equalsIgnoreCase(user.getRole())) {
+            return ResponseEntity.status(403).body(Map.of("message", "Microsoft login is only allowed for employees."));
+        }
+        
+        boolean saveNeeded = false;
+        if (user.getEntraObjectId() == null || user.getEntraObjectId().isEmpty()) {
+            user.setEntraObjectId(msInfo.oid());
+            saveNeeded = true;
+        }
+        if (user.getEntraEmail() == null || user.getEntraEmail().isEmpty()) {
+            user.setEntraEmail(msInfo.email());
+            saveNeeded = true;
+        }
+        if (saveNeeded) {
+            userRepository.save(user);
+        }
+        
+        boolean isProxy = msInfo.roles() != null && msInfo.roles().contains("InternSync.Proxy.DP.Full");
+        String department = null;
+        String designation = null;
+
+        if (user.getEmployeeId() != null) {
+            Optional<Employee> empOpt = employeeRepository.findById(user.getEmployeeId());
+            if (empOpt.isPresent()) {
+                Employee emp = empOpt.get();
+                if (isProxy && !"Digital Platforms".equals(emp.getDepartment())) {
+                    return ResponseEntity.status(403).body(Map.of("message", "Proxy role does not match the employee department."));
+                }
+                department = emp.getDepartment();
+                designation = emp.getDesignation();
+            }
+        }
+        
+        String jwt = jwtUtils.generateTokenFromUser(user, msInfo.roles(), department, designation, isProxy);
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("token", jwt);
+        response.put("id", user.getId());
+        response.put("username", user.getUsername());
+        response.put("email", user.getEmail());
+        
+        java.util.List<org.springframework.security.core.authority.SimpleGrantedAuthority> authorities = 
+            java.util.List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_" + user.getRole()));
+        response.put("roles", authorities);
+        
+        response.put("internId", user.getInternId());
+        response.put("employeeId", user.getEmployeeId());
+        response.put("entraRoles", msInfo.roles());
+        
+        response.put("isProxy", isProxy);
+
+        if (department != null) {
+            response.put("department", department);
+            response.put("designation", designation);
+        }
+
+        System.out.println("--- MS Login Success ---");
+        System.out.println("Email: " + user.getEmail());
+        System.out.println("EntraRoles: " + msInfo.roles());
+        System.out.println("IsProxy: " + isProxy);
+        System.out.println("Department: " + department);
         return ResponseEntity.ok(response);
     }
 
@@ -164,6 +262,14 @@ public class AuthController {
         response.put("roles", userDetails.getAuthorities());
         response.put("internId", userDetails.getInternId());
         response.put("employeeId", userDetails.getEmployeeId());
+
+        java.util.List<String> entraRoles = userDetails.getEntraRoles() != null ? userDetails.getEntraRoles() : java.util.List.of();
+        response.put("entraRoles", entraRoles);
+        
+        boolean isProxy = entraRoles.contains("InternSync.Proxy.DP.Full") ||
+                          entraRoles.contains("InternSync.Proxy.DL.Full") ||
+                          entraRoles.contains("InternSync.Proxy.HC.Full");
+        response.put("isProxy", isProxy);
 
         if (userDetails.getEmployeeId() != null) {
             employeeRepository.findById(userDetails.getEmployeeId())
@@ -426,6 +532,14 @@ public class AuthController {
         public void setUsernameOrEmail(String usernameOrEmail) { this.usernameOrEmail = usernameOrEmail; }
         public String getPassword() { return password; }
         public void setPassword(String password) { this.password = password; }
+    }
+
+    public static class MicrosoftLoginRequest {
+        @NotBlank
+        private String idToken;
+
+        public String getIdToken() { return idToken; }
+        public void setIdToken(String idToken) { this.idToken = idToken; }
     }
 
     public static class ForgotPasswordRequest {

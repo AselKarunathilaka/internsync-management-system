@@ -67,6 +67,7 @@ public class SecurityConfig {
                         "/api/status/**",
                         "/actuator/health",
                         "/api/auth/login",
+                        "/api/auth/microsoft",
                         "/api/auth/register",
                         "/api/auth/register-employee-public",
                         "/api/auth/forgot-password",

@@ -9,6 +9,7 @@ import com.example.deploymentlab.model.Project;
 import com.example.deploymentlab.repository.EmployeeRepository;
 import com.example.deploymentlab.repository.InternRepository;
 import com.example.deploymentlab.repository.ProjectRepository;
+import com.example.deploymentlab.service.DepartmentAuthorityService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -29,36 +30,35 @@ public class DgmController {
     private final InternRepository internRepository;
     private final EmployeeRepository employeeRepository;
     private final ProjectRepository projectRepository;
+    private final DepartmentAuthorityService authorityService;
 
-    public DgmController(InternRepository internRepository, EmployeeRepository employeeRepository, ProjectRepository projectRepository) {
+    public DgmController(InternRepository internRepository, EmployeeRepository employeeRepository, 
+                         ProjectRepository projectRepository, DepartmentAuthorityService authorityService) {
         this.internRepository = internRepository;
         this.employeeRepository = employeeRepository;
         this.projectRepository = projectRepository;
+        this.authorityService = authorityService;
     }
 
-    private Employee getDgmEmployee() {
+    private Employee getDepartmentActor() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        UserDetailsImpl userDetails = (UserDetailsImpl) auth.getPrincipal();
-
-        if (userDetails.getEmployeeId() == null) {
+        Employee emp = authorityService.getEmployee(auth);
+        if (emp == null) {
             throw new RuntimeException("Logged in user is not associated with an Employee profile.");
         }
-
-        Employee emp = employeeRepository.findById(userDetails.getEmployeeId())
-                .orElseThrow(() -> new RuntimeException("Employee profile not found."));
-
-        if (!"Deputy General Manager".equalsIgnoreCase(emp.getDesignation())) {
-            throw new RuntimeException("Unauthorized: User is not a Deputy General Manager.");
-        }
-
         return emp;
     }
 
     @GetMapping("/dashboard")
     public ResponseEntity<?> getDashboard() {
         try {
-            Employee dgm = getDgmEmployee();
-            String dept = dgm.getDepartment();
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            Employee actor = getDepartmentActor();
+            String dept = actor.getDepartment();
+
+            if (!authorityService.canViewDepartment(auth, dept)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", "Unauthorized to view this department."));
+            }
 
             List<Intern> deptInterns = internRepository.findAll().stream()
                     .filter(i -> dept.equalsIgnoreCase(i.getDepartment()))
@@ -89,8 +89,13 @@ public class DgmController {
     @GetMapping("/department-interns")
     public ResponseEntity<?> getDepartmentInterns() {
         try {
-            Employee dgm = getDgmEmployee();
-            String dept = dgm.getDepartment();
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            Employee actor = getDepartmentActor();
+            String dept = actor.getDepartment();
+
+            if (!authorityService.canViewDepartment(auth, dept)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", "Unauthorized to view this department."));
+            }
 
             List<Intern> deptInterns = internRepository.findAll().stream()
                     .filter(i -> dept.equalsIgnoreCase(i.getDepartment()))
@@ -105,8 +110,13 @@ public class DgmController {
     @GetMapping("/department-projects")
     public ResponseEntity<?> getDepartmentProjects() {
         try {
-            Employee dgm = getDgmEmployee();
-            String dept = dgm.getDepartment();
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            Employee actor = getDepartmentActor();
+            String dept = actor.getDepartment();
+
+            if (!authorityService.canViewDepartment(auth, dept)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", "Unauthorized to view this department."));
+            }
 
             List<Project> deptProjects = projectRepository.findAll().stream()
                     .filter(p -> dept.equalsIgnoreCase(p.getDepartment()))
@@ -121,8 +131,13 @@ public class DgmController {
     @GetMapping("/department-employees")
     public ResponseEntity<?> getDepartmentEmployees() {
         try {
-            Employee dgm = getDgmEmployee();
-            String dept = dgm.getDepartment();
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            Employee actor = getDepartmentActor();
+            String dept = actor.getDepartment();
+
+            if (!authorityService.canViewDepartment(auth, dept)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", "Unauthorized to view this department."));
+            }
 
             List<Employee> deptEmployees = employeeRepository.findAll().stream()
                     .filter(e -> dept.equalsIgnoreCase(e.getDepartment()))

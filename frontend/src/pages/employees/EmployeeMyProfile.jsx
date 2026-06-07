@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../../context/AuthContext';
 import api from '../../api';
+import { isProxyUser } from '../../utils/authHelpers';
 
 const EmployeeMyProfile = () => {
   const { user } = useContext(AuthContext);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const isProxy = isProxyUser(user);
   
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
@@ -206,6 +208,52 @@ const EmployeeMyProfile = () => {
             </div>
           </div>
         </div>
+
+        {isProxy && (
+          <div className="glass-card animate-slide-up border-t-4 border-t-purple-500 mt-8">
+            <h3 className="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+              Proxy Access
+            </h3>
+            
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm font-bold text-gray-500">Status</p>
+                  <p className="text-emerald-600 font-bold">Active</p>
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-gray-500">Source</p>
+                  <p className="text-indigo-600 font-bold">Microsoft Entra ID</p>
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-gray-500">Proxy Role</p>
+                  <p className="text-slate-800 font-bold">Digital Platforms Proxy</p>
+                </div>
+              </div>
+
+              <div className="mt-6">
+                <h4 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-2">Allowed Actions</h4>
+                <ul className="list-disc list-inside text-gray-600 space-y-1 ml-2">
+                  <li>Update paid/non-paid status for interns</li>
+                  <li>Assign interns to projects</li>
+                  <li>Remove interns from projects</li>
+                </ul>
+              </div>
+
+              <div className="mt-4">
+                <h4 className="text-sm font-bold text-red-700 uppercase tracking-wider mb-2">Restricted Actions</h4>
+                <ul className="list-disc list-inside text-red-600 space-y-1 ml-2">
+                  <li>Cannot edit employee profiles</li>
+                  <li>Cannot create login accounts</li>
+                  <li>Cannot create/edit/delete projects</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );

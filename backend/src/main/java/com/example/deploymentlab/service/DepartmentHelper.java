@@ -13,13 +13,30 @@ public class DepartmentHelper {
 
         switch (spec) {
             case "AI":
+            case "IOT":
                 return DepartmentName.DIGITAL_LABS;
+
+            case "FINANCE":
             case "BA":
-            case "OTHER":
+            case "LOGISTICS":
                 return DepartmentName.HUMAN_CAPITAL;
+
             default:
-                // MERN, QA, Cloud, CICD, C#, Flutter, FullStack, JAVA, PHP, PM, etc.
                 return DepartmentName.DIGITAL_PLATFORMS;
+        }
+    }
+
+    public static String departmentCode(String department) {
+        String normalized = normalizeDepartment(department);
+        switch (normalized) {
+            case "DIGITAL_PLATFORMS":
+                return "DP";
+            case "DIGITAL_LABS":
+                return "DL";
+            case "HUMAN_CAPITAL":
+                return "HC";
+            default:
+                return "UNKNOWN";
         }
     }
     public static String normalizeDepartment(String value) {

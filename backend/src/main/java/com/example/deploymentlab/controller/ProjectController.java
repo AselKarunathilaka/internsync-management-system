@@ -8,6 +8,7 @@ import com.example.deploymentlab.model.InternAssignmentStatus;
 import com.example.deploymentlab.repository.ProjectRepository;
 import com.example.deploymentlab.repository.EmployeeRepository;
 import com.example.deploymentlab.repository.InternRepository;
+import com.example.deploymentlab.service.DepartmentAuthorityService;
 import com.example.deploymentlab.service.DepartmentHelper;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -29,39 +30,22 @@ public class ProjectController {
     private final ProjectRepository projectRepository;
     private final EmployeeRepository employeeRepository;
     private final InternRepository internRepository;
+    private final DepartmentAuthorityService authorityService;
 
-    public ProjectController(ProjectRepository projectRepository, EmployeeRepository employeeRepository, InternRepository internRepository) {
+    public ProjectController(ProjectRepository projectRepository, EmployeeRepository employeeRepository, 
+                             InternRepository internRepository, DepartmentAuthorityService authorityService) {
         this.projectRepository = projectRepository;
         this.employeeRepository = employeeRepository;
         this.internRepository = internRepository;
+        this.authorityService = authorityService;
     }
 
     private boolean hasAdminRole(Authentication auth) {
-        return auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        return authorityService.isAdmin(auth);
     }
 
     private Employee getEmployeeProfile(Authentication auth) {
-        UserDetailsImpl userDetails = (UserDetailsImpl) auth.getPrincipal();
-        if (userDetails.getEmployeeId() == null) return null;
-        return employeeRepository.findById(userDetails.getEmployeeId()).orElse(null);
-    }
-
-    private boolean canManageProject(Authentication auth, String projectDepartment) {
-        if (hasAdminRole(auth)) return true;
-        Employee emp = getEmployeeProfile(auth);
-        if (emp == null) return false;
-        
-        boolean isGmOrDgm = "General Manager".equalsIgnoreCase(emp.getDesignation()) || "Deputy General Manager".equalsIgnoreCase(emp.getDesignation());
-        return isGmOrDgm && DepartmentHelper.normalizeDepartment(emp.getDepartment()).equals(DepartmentHelper.normalizeDepartment(projectDepartment));
-    }
-
-    private boolean canDeleteProject(Authentication auth, String projectDepartment) {
-        if (hasAdminRole(auth)) return true;
-        Employee emp = getEmployeeProfile(auth);
-        if (emp == null) return false;
-        
-        boolean isGm = "General Manager".equalsIgnoreCase(emp.getDesignation());
-        return isGm && DepartmentHelper.normalizeDepartment(emp.getDepartment()).equals(DepartmentHelper.normalizeDepartment(projectDepartment));
+        return authorityService.getEmployee(auth);
     }
 
     @GetMapping
@@ -74,7 +58,7 @@ public class ProjectController {
     @PreAuthorize("hasAnyRole('ADMIN', 'EMPLOYEE')")
     public ResponseEntity<?> createProject(@Valid @RequestBody Project project) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (!canManageProject(auth, project.getDepartment())) {
+        if (!authorityService.canCreateOrEditProject(auth, project.getDepartment())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Error: You do not have permission to create projects in this department."));
         }
 
@@ -116,8 +100,7 @@ public class ProjectController {
         // If EMPLOYEE
         Employee emp = getEmployeeProfile(auth);
         if (emp != null) {
-            boolean isGmOrDgm = "General Manager".equalsIgnoreCase(emp.getDesignation()) || "Deputy General Manager".equalsIgnoreCase(emp.getDesignation());
-            if (isGmOrDgm && DepartmentHelper.normalizeDepartment(emp.getDepartment()).equals(DepartmentHelper.normalizeDepartment(project.getDepartment()))) {
+            if (authorityService.canViewDepartment(auth, project.getDepartment())) {
                 return ResponseEntity.ok(project);
             }
             
@@ -138,12 +121,12 @@ public class ProjectController {
         if (optionalProject.isPresent()) {
             Project project = optionalProject.get();
             
-            if (!canManageProject(auth, project.getDepartment())) {
+            if (!authorityService.canCreateOrEditProject(auth, project.getDepartment())) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Error: You do not have permission to edit this project."));
             }
 
             // If changing department, check permission for the NEW department too
-            if (!project.getDepartment().equalsIgnoreCase(projectDetails.getDepartment()) && !canManageProject(auth, projectDetails.getDepartment())) {
+            if (!project.getDepartment().equalsIgnoreCase(projectDetails.getDepartment()) && !authorityService.canCreateOrEditProject(auth, projectDetails.getDepartment())) {
                  return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Error: You cannot move a project to a department you do not manage."));
             }
 
@@ -170,7 +153,7 @@ public class ProjectController {
         Optional<Project> optionalProject = projectRepository.findById(id);
         if (optionalProject.isPresent()) {
             Project project = optionalProject.get();
-            if (!canDeleteProject(auth, project.getDepartment())) {
+            if (!authorityService.canDeleteProject(auth, project.getDepartment())) {
                  return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Error: You do not have permission to delete this project."));
             }
             projectRepository.deleteById(id);
@@ -187,13 +170,23 @@ public class ProjectController {
         Optional<Project> optionalProject = projectRepository.findById(id);
         if (optionalProject.isPresent()) {
             Project project = optionalProject.get();
-            if (!canManageProject(auth, project.getDepartment())) {
+            if (!authorityService.canAssignInternsToProject(auth, project.getDepartment())) {
                  return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Error: You do not have permission to manage this project."));
             }
 
             List<String> newInternIds = payload.get("internIds");
             if (newInternIds != null) {
                 for(String internId : newInternIds) {
+                    // Check if intern exists and is same department
+                    Optional<Intern> intOpt = internRepository.findById(internId);
+                    if (intOpt.isPresent()) {
+                        if (!DepartmentHelper.normalizeDepartment(project.getDepartment()).equals(DepartmentHelper.normalizeDepartment(intOpt.get().getDepartment()))) {
+                            continue;
+                        }
+                    } else {
+                        continue;
+                    }
+
                     if (!project.getAssignedInternIds().contains(internId)) {
                         project.getAssignedInternIds().add(internId);
                     }
@@ -223,7 +216,7 @@ public class ProjectController {
         Optional<Project> optionalProject = projectRepository.findById(id);
         if (optionalProject.isPresent()) {
             Project project = optionalProject.get();
-            if (!canManageProject(auth, project.getDepartment())) {
+            if (!authorityService.canAssignInternsToProject(auth, project.getDepartment())) {
                  return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Error: You do not have permission to manage this project."));
             }
 
@@ -280,7 +273,7 @@ public class ProjectController {
         }
 
         Project project = optionalProject.get();
-        if (!canManageProject(auth, project.getDepartment())) {
+        if (!authorityService.canCreateOrEditProject(auth, project.getDepartment())) {
              return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Error: You do not have permission to manage this project."));
         }
 
@@ -311,7 +304,7 @@ public class ProjectController {
         Optional<Project> optionalProject = projectRepository.findById(id);
         if (optionalProject.isPresent()) {
             Project project = optionalProject.get();
-            if (!canManageProject(auth, project.getDepartment())) {
+            if (!authorityService.canCreateOrEditProject(auth, project.getDepartment())) {
                  return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Error: You do not have permission to manage this project."));
             }
 

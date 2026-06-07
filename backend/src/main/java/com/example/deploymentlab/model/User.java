@@ -26,6 +26,9 @@ public class User {
     private String internId; // Only if role is INTERN
     private String employeeId; // Only if role is EMPLOYEE
 
+    private String entraEmail;
+    private String entraObjectId;
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -60,4 +63,10 @@ public class User {
 
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+
+    public String getEntraEmail() { return entraEmail; }
+    public void setEntraEmail(String entraEmail) { this.entraEmail = entraEmail; }
+
+    public String getEntraObjectId() { return entraObjectId; }
+    public void setEntraObjectId(String entraObjectId) { this.entraObjectId = entraObjectId; }
 }

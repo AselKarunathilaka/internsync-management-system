@@ -1,10 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import api from '../../api';
+import { AuthContext } from '../../context/AuthContext';
+import { isProxyUser, isActualGM, isActualDGM, isAdmin as checkIsAdmin } from '../../utils/authHelpers';
 
 const EmployeeProfile = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useContext(AuthContext);
   const [employee, setEmployee] = useState(null);
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -45,8 +48,14 @@ const EmployeeProfile = () => {
     return <div className="text-center p-8 text-red-600 font-bold bg-white/40 rounded-xl border border-red-100 max-w-2xl mx-auto mt-10">{error || "Employee not found"}</div>;
   }
 
+  const isProxy = isProxyUser(user);
+  const isAdminUser = checkIsAdmin(user);
+  const isActualGmUser = isActualGM(user);
+  const isActualDgmUser = isActualDGM(user);
+
+  const canEdit = isAdminUser || ((isActualGmUser || isActualDgmUser) && !isProxy);
+
   const isGM = employee.designation === 'General Manager' || employee.designation === 'Deputy General Manager';
-  const canEdit = true; // Typically role-based, assume admin for now
 
   const handleCreateAccount = async (e) => {
     e.preventDefault();

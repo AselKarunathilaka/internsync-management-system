@@ -1,6 +1,7 @@
 import React, { useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
+import { isProxyUser, isActualGM, isActualDGM, isAdmin as checkIsAdmin } from '../utils/authHelpers';
 
 const Navbar = () => {
   const { user, logout } = useContext(AuthContext);
@@ -11,14 +12,14 @@ const Navbar = () => {
     navigate('/login');
   };
 
-  const isAdmin = user?.roles?.some(r => r.authority === 'ROLE_ADMIN');
+  const isAdminUser = checkIsAdmin(user);
   const isIntern = user?.roles?.some(r => r.authority === 'ROLE_INTERN');
-  const isEmployee = user?.roles?.some(r => r.authority === 'ROLE_EMPLOYEE');
+  const isEmployeeUser = user?.roles?.some(r => r.authority === 'ROLE_EMPLOYEE') || user?.role === 'EMPLOYEE';
   
-  const designation = user?.designation;
-  const isGM = isEmployee && designation === 'General Manager';
-  const isDGM = isEmployee && designation === 'Deputy General Manager';
-  const isRegularEmployee = isEmployee && !isGM && !isDGM;
+  const isProxy = isProxyUser(user);
+  const isGM = isActualGM(user);
+  const isDGM = isActualDGM(user);
+  const isRegularEmployee = isEmployeeUser && !isGM && !isDGM && !isProxy;
 
   return (
     <header className="glass-header">
@@ -35,7 +36,7 @@ const Navbar = () => {
         <nav className="flex items-center gap-2">
           {user && (
             <>
-              {isAdmin && (
+              {isAdminUser && (
                 <>
                   <Link to="/" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">Dashboard</Link>
                   <Link to="/directory" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">Org Directory</Link>
@@ -60,6 +61,14 @@ const Navbar = () => {
                   <Link to="/gm-interns" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">Dept. Interns</Link>
                   <Link to="/gm-projects" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">Dept. Projects</Link>
                   <Link to="/gm-employees" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">Dept. Employees</Link>
+                  <Link to="/employee-profile" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">My Profile</Link>
+                </>
+              )}
+              {isProxy && (
+                <>
+                  <Link to="/proxy-dashboard" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">Proxy Dashboard</Link>
+                  <Link to="/gm-interns" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">Dept. Interns</Link>
+                  <Link to="/gm-projects" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">Dept. Projects</Link>
                   <Link to="/employee-profile" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">My Profile</Link>
                 </>
               )}

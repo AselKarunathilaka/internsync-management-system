@@ -35,9 +35,37 @@ public class JwtUtils {
                 .compact();
     }
 
+    public String generateTokenFromUser(com.example.deploymentlab.model.User user, java.util.List<String> entraRoles, String department, String designation, boolean isProxy) {
+        return Jwts.builder()
+                .setSubject(user.getUsername())
+                .claim("userId", user.getId())
+                .claim("role", user.getRole())
+                .claim("internId", user.getInternId())
+                .claim("employeeId", user.getEmployeeId())
+                .claim("department", department)
+                .claim("designation", designation)
+                .claim("entraRoles", entraRoles)
+                .claim("isProxy", isProxy)
+                .setIssuedAt(new Date())
+                .setExpiration(new Date((new Date()).getTime() + jwtExpirationMs))
+                .signWith(key(), SignatureAlgorithm.HS256)
+                .compact();
+    }
+
     public String getUserNameFromJwtToken(String token) {
         return Jwts.parserBuilder().setSigningKey(key()).build()
                 .parseClaimsJws(token).getBody().getSubject();
+    }
+
+    @SuppressWarnings("unchecked")
+    public java.util.List<String> getEntraRolesFromJwtToken(String token) {
+        try {
+            java.util.List<String> roles = Jwts.parserBuilder().setSigningKey(key()).build()
+                    .parseClaimsJws(token).getBody().get("entraRoles", java.util.List.class);
+            return roles != null ? roles : java.util.List.of();
+        } catch (Exception e) {
+            return java.util.List.of();
+        }
     }
 
     public boolean validateJwtToken(String authToken) {

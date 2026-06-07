@@ -42,12 +42,17 @@ import GmEmployees from './pages/gm/GmEmployees';
 
 import DgmDashboard from './pages/dgm/DgmDashboard';
 
+import ProxyDashboard from './pages/proxy/ProxyDashboard';
+
 import NotFound from './pages/NotFound';
+
+import MicrosoftRedirectHandler from './auth/MicrosoftRedirectHandler';
 
 function App() {
   return (
     <AuthProvider>
       <Router>
+        <MicrosoftRedirectHandler />
         <Navbar />
         <main className="max-w-7xl mx-auto px-6 py-8">
           <Routes>
@@ -98,6 +103,9 @@ function App() {
             <Route path="/gm-interns" element={<ProtectedRoute roles={['EMPLOYEE']}><GmInterns /></ProtectedRoute>} />
             <Route path="/gm-projects" element={<ProtectedRoute roles={['EMPLOYEE']}><GmProjects /></ProtectedRoute>} />
             <Route path="/gm-employees" element={<ProtectedRoute roles={['EMPLOYEE']}><GmEmployees /></ProtectedRoute>} />
+
+            {/* Proxy Dashboard Route */}
+            <Route path="/proxy-dashboard" element={<ProtectedRoute roles={['EMPLOYEE']}><ProxyDashboard /></ProtectedRoute>} />
 
             {/* Deputy General Manager Routes */}
             <Route path="/dgm-dashboard" element={<ProtectedRoute roles={['EMPLOYEE']}><DgmDashboard /></ProtectedRoute>} />
