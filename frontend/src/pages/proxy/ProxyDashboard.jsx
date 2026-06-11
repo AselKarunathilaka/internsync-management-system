@@ -8,8 +8,9 @@ import { getMyProxyAccess } from '../../features/proxy/api/proxyApi';
 
 const parseDate = (dt) => {
     if (!dt) return null;
-    if (Array.isArray(dt)) return new Date(dt[0], dt[1] - 1, dt[2], dt[3] || 0, dt[4] || 0);
-    return new Date(dt);
+    if (Array.isArray(dt)) return new Date(Date.UTC(dt[0], dt[1] - 1, dt[2], dt[3] || 0, dt[4] || 0));
+    const dtStr = typeof dt === 'string' && !dt.endsWith('Z') ? dt + 'Z' : dt;
+    return new Date(dtStr);
 };
 
 const fmt = (dt) => {
