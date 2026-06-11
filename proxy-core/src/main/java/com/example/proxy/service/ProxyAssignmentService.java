@@ -207,8 +207,27 @@ public class ProxyAssignmentService {
         return saved;
     }
     
+    /**
+     * Get active proxy assignments for a user.
+     * userId may be a MongoDB _id OR a username string (from principal.getName()).
+     * We resolve it through the host integration so either form works.
+     */
     public List<ProxyAssignment> getActiveAssignmentsForUser(String userId) {
-        return proxyAssignmentRepository.findByProxyUserIdAndActiveTrueAndRemovedAtIsNull(userId);
+        // Try direct lookup first (by stored proxyUserId which is always the MongoDB _id)
+        List<ProxyAssignment> byId = proxyAssignmentRepository.findByProxyUserIdAndActiveTrueAndRemovedAtIsNull(userId);
+        if (!byId.isEmpty()) {
+            return byId;
+        }
+        // If nothing found, userId might be a username string — resolve through host integration
+        try {
+            HostUserDetails resolved = proxyHostIntegration.getUserDetails(userId);
+            if (resolved != null && resolved.getId() != null && !resolved.getId().equals(userId)) {
+                return proxyAssignmentRepository.findByProxyUserIdAndActiveTrueAndRemovedAtIsNull(resolved.getId());
+            }
+        } catch (Exception e) {
+            // ignore resolution errors, return empty
+        }
+        return byId;
     }
 }
 

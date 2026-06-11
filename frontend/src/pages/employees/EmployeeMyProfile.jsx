@@ -3,13 +3,45 @@ import { AuthContext } from '../../context/AuthContext';
 import api from '../../api';
 import { isProxyUser } from '../../utils/authHelpers';
 
+// Format a date in Sri Lanka local time (Asia/Colombo)
+const fmtSL = (dt) => {
+  if (!dt) return '—';
+  let d;
+  if (Array.isArray(dt)) d = new Date(dt[0], dt[1] - 1, dt[2], dt[3] || 0, dt[4] || 0);
+  else d = new Date(dt);
+  return d.toLocaleString('en-GB', {
+    timeZone: 'Asia/Colombo',
+    day: '2-digit', month: 'short', year: 'numeric',
+    hour: '2-digit', minute: '2-digit'
+  });
+};
+
+const getTimeRemaining = (expiresAt) => {
+  if (!expiresAt) return null;
+  let d;
+  if (Array.isArray(expiresAt)) d = new Date(expiresAt[0], expiresAt[1] - 1, expiresAt[2], expiresAt[3] || 0, expiresAt[4] || 0);
+  else d = new Date(expiresAt);
+  const diffMs = d - Date.now();
+  if (diffMs <= 0) return { label: 'Expired', expired: true, urgent: false, critical: false };
+  const days = Math.floor(diffMs / 86400000);
+  const hours = Math.floor((diffMs % 86400000) / 3600000);
+  const mins = Math.floor((diffMs % 3600000) / 60000);
+  let label;
+  if (days > 0) label = `${days}d ${hours}h ${mins}m remaining`;
+  else if (hours > 0) label = `${hours}h ${mins}m remaining`;
+  else label = `${mins}m remaining`;
+  return { label, expired: false, urgent: diffMs < 86400000, critical: diffMs < 3600000 };
+};
+
 const EmployeeMyProfile = () => {
   const { user } = useContext(AuthContext);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const isProxy = isProxyUser(user);
-  
+  const [proxyAccess, setProxyAccess] = useState(null);
+  const [timeRemaining, setTimeRemaining] = useState(null);
+
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     fullName: '',
@@ -27,9 +59,12 @@ const EmployeeMyProfile = () => {
           return;
         }
 
-        const res = await api.get(`/employees/me`).catch(() => ({ data: null }));
-        
-        let fetchedProfile = res.data;
+        const [profileRes, proxyRes] = await Promise.all([
+          api.get('/employees/me').catch(() => ({ data: null })),
+          api.get('/proxy/me').catch(() => ({ data: null }))
+        ]);
+
+        let fetchedProfile = profileRes.data;
         if (!fetchedProfile) {
           fetchedProfile = {
             fullName: user?.fullName || user?.username || 'Employee User',
@@ -40,13 +75,19 @@ const EmployeeMyProfile = () => {
             specialization: 'Onboarding'
           };
         }
-        
+
         setProfile(fetchedProfile);
         setFormData({
           fullName: fetchedProfile.fullName || '',
           email: fetchedProfile.email || '',
           phoneNumber: fetchedProfile.phoneNumber || ''
         });
+
+        if (proxyRes.data?.isProxy) {
+          setProxyAccess(proxyRes.data);
+          setTimeRemaining(getTimeRemaining(proxyRes.data.expiresAt));
+        }
+
         setLoading(false);
       } catch (err) {
         console.error("Error fetching employee profile", err);
@@ -57,6 +98,15 @@ const EmployeeMyProfile = () => {
 
     fetchProfile();
   }, [user]);
+
+  // Live countdown timer — updates every 30 seconds
+  useEffect(() => {
+    if (!proxyAccess?.expiresAt) return;
+    const interval = setInterval(() => {
+      setTimeRemaining(getTimeRemaining(proxyAccess.expiresAt));
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [proxyAccess]);
 
   const handleSave = async () => {
     if (!formData.fullName.trim() || !formData.email.trim()) {
@@ -209,15 +259,48 @@ const EmployeeMyProfile = () => {
           </div>
         </div>
 
-        {isProxy && (
-          <div className="glass-card animate-slide-up border-t-4 border-t-purple-500 mt-8">
+        {(isProxy || proxyAccess?.isProxy) && (
+          <div className={`glass-card animate-slide-up border-t-4 mt-8 ${
+            timeRemaining?.critical ? 'border-t-red-500' :
+            timeRemaining?.urgent  ? 'border-t-orange-500' :
+                                     'border-t-purple-500'
+          }`}>
             <h3 className="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
               </svg>
               Proxy Access
             </h3>
-            
+
+            {/* Time Remaining Banner */}
+            {proxyAccess?.expiresAt && (
+              <div className={`rounded-xl p-4 mb-6 flex items-center gap-3 ${
+                timeRemaining?.expired  ? 'bg-gray-100 border border-gray-300' :
+                timeRemaining?.critical ? 'bg-red-50 border border-red-300 animate-pulse' :
+                timeRemaining?.urgent   ? 'bg-orange-50 border border-orange-300' :
+                                          'bg-amber-50 border border-amber-200'
+              }`}>
+                <span className="text-2xl">{timeRemaining?.expired ? '❌' : timeRemaining?.critical ? '🚨' : timeRemaining?.urgent ? '⚠️' : '🕐'}</span>
+                <div>
+                  <p className={`font-extrabold text-sm ${
+                    timeRemaining?.expired  ? 'text-gray-600' :
+                    timeRemaining?.critical ? 'text-red-700' :
+                    timeRemaining?.urgent   ? 'text-orange-700' :
+                                              'text-amber-800'
+                  }`}>
+                    {timeRemaining?.expired ? 'Proxy Access Expired' : timeRemaining?.label}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-0.5">Expires: {fmtSL(proxyAccess.expiresAt)} (Sri Lanka Time)</p>
+                </div>
+              </div>
+            )}
+            {!proxyAccess?.expiresAt && (
+              <div className="rounded-xl p-4 mb-6 flex items-center gap-3 bg-green-50 border border-green-200">
+                <span className="text-2xl">🔑</span>
+                <p className="font-extrabold text-sm text-green-700">Proxy Access Active — No Expiry Set</p>
+              </div>
+            )}
+
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -226,32 +309,48 @@ const EmployeeMyProfile = () => {
                 </div>
                 <div>
                   <p className="text-sm font-bold text-gray-500">Source</p>
-                  <p className="text-indigo-600 font-bold">{user?.proxySource || 'Microsoft Entra ID'}</p>
+                  <p className="text-indigo-600 font-bold">{proxyAccess?.source || user?.proxySource || 'INTERNAL'}</p>
                 </div>
                 <div>
                   <p className="text-sm font-bold text-gray-500">Proxy Role</p>
-                  <p className="text-slate-800 font-bold">{user?.proxyRole || 'Digital Platforms Proxy'}</p>
+                  <p className="text-slate-800 font-bold">{proxyAccess?.proxyRole || user?.proxyRole || '—'}</p>
                 </div>
+                <div>
+                  <p className="text-sm font-bold text-gray-500">Department Scope</p>
+                  <p className="text-slate-800 font-bold">{proxyAccess?.scopeValue || user?.proxyScopeValue || '—'}</p>
+                </div>
+                {proxyAccess?.startDate && (
+                  <div>
+                    <p className="text-sm font-bold text-gray-500">Valid From</p>
+                    <p className="text-slate-700 font-medium">{fmtSL(proxyAccess.startDate)}</p>
+                  </div>
+                )}
+                {proxyAccess?.expiresAt && (
+                  <div>
+                    <p className="text-sm font-bold text-gray-500">Valid Until</p>
+                    <p className="text-slate-700 font-medium">{fmtSL(proxyAccess.expiresAt)}</p>
+                  </div>
+                )}
               </div>
 
               <div className="mt-6">
-                <h4 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-2">Allowed Actions</h4>
-                <ul className="list-disc list-inside text-gray-600 space-y-1 ml-2">
-                  {user?.proxyPermissions && user.proxyPermissions.length > 0 ? (
-                    user.proxyPermissions.map((perm, idx) => <li key={idx}>{perm}</li>)
+                <h4 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-3">Granted Permissions</h4>
+                <div className="flex flex-wrap gap-2">
+                  {(proxyAccess?.permissions || user?.proxyPermissions || []).length > 0 ? (
+                    (proxyAccess?.permissions || user?.proxyPermissions || []).map((perm, idx) => (
+                      <span key={idx} className="px-3 py-1 bg-purple-50 text-purple-700 border border-purple-200 rounded-full text-sm font-semibold">
+                        {perm.replace(/_/g, ' ')}
+                      </span>
+                    ))
                   ) : (
-                    <>
-                      <li>Update paid/non-paid status for interns</li>
-                      <li>Assign interns to projects</li>
-                      <li>Remove interns from projects</li>
-                    </>
+                    <span className="text-gray-400 text-sm italic">No permissions listed</span>
                   )}
-                </ul>
+                </div>
               </div>
 
               <div className="mt-4">
                 <h4 className="text-sm font-bold text-red-700 uppercase tracking-wider mb-2">Restricted Actions</h4>
-                <ul className="list-disc list-inside text-red-600 space-y-1 ml-2">
+                <ul className="list-disc list-inside text-red-600 space-y-1 ml-2 text-sm">
                   <li>Cannot edit employee profiles</li>
                   <li>Cannot create login accounts</li>
                   <li>Cannot create/edit/delete projects</li>
