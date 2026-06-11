@@ -43,6 +43,7 @@ import GmEmployees from './pages/gm/GmEmployees';
 import DgmDashboard from './pages/dgm/DgmDashboard';
 
 import ProxyDashboard from './pages/proxy/ProxyDashboard';
+import ProxyManagement from './pages/proxy/ProxyManagement';
 
 import NotFound from './pages/NotFound';
 
@@ -106,6 +107,7 @@ function App() {
 
             {/* Proxy Dashboard Route */}
             <Route path="/proxy-dashboard" element={<ProtectedRoute roles={['EMPLOYEE']}><ProxyDashboard /></ProtectedRoute>} />
+            <Route path="/proxy-management" element={<ProtectedRoute roles={['EMPLOYEE', 'ADMIN']}><ProxyManagement /></ProtectedRoute>} />
 
             {/* Deputy General Manager Routes */}
             <Route path="/dgm-dashboard" element={<ProtectedRoute roles={['EMPLOYEE']}><DgmDashboard /></ProtectedRoute>} />

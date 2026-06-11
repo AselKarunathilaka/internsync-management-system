@@ -28,7 +28,10 @@ import java.util.Optional;
 import java.util.UUID;
 
 import com.example.deploymentlab.service.MicrosoftTokenService;
+import com.example.proxy.service.ProxyAssignmentService;
+import com.example.proxy.model.ProxyAssignment;
 import org.springframework.beans.factory.annotation.Value;
+
 
 @RestController
 @RequestMapping("/api/auth")
@@ -42,14 +45,18 @@ public class AuthController {
     private final InternRepository internRepository;
     private final EmployeeRepository employeeRepository;
     private final MicrosoftTokenService microsoftTokenService;
+    private final ProxyAssignmentService proxyAssignmentService;
 
     @Value("${app.local-email-domain:example.com}")
     private String localEmailDomain;
 
+    @Value("${app.microsoft-login.enabled:false}")
+    private boolean microsoftLoginEnabled;
+
     public AuthController(AuthenticationManager authenticationManager, UserRepository userRepository,
                           PasswordEncoder encoder, JwtUtils jwtUtils, PasswordResetTokenRepository tokenRepository, 
                           InternRepository internRepository, EmployeeRepository employeeRepository,
-                          MicrosoftTokenService microsoftTokenService) {
+                          MicrosoftTokenService microsoftTokenService, ProxyAssignmentService proxyAssignmentService) {
         this.authenticationManager = authenticationManager;
         this.userRepository = userRepository;
         this.encoder = encoder;
@@ -58,7 +65,9 @@ public class AuthController {
         this.internRepository = internRepository;
         this.employeeRepository = employeeRepository;
         this.microsoftTokenService = microsoftTokenService;
+        this.proxyAssignmentService = proxyAssignmentService;
     }
+
 
     @PostMapping("/login")
     public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
@@ -115,12 +124,37 @@ public class AuthController {
                 });
         }
 
+        // Internal Proxy Data Check
+        java.util.List<ProxyAssignment> activeProxies = proxyAssignmentService.getActiveAssignmentsForUser(userDetails.getId());
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+        ProxyAssignment activeAssignment = activeProxies.stream()
+            .filter(a -> a.getStartDate() == null || now.isAfter(a.getStartDate()))
+            .filter(a -> a.getExpiresAt() == null || now.isBefore(a.getExpiresAt()))
+            .findFirst().orElse(null);
+
+        if (activeAssignment != null) {
+            response.put("isProxy", true);
+            response.put("proxySource", activeAssignment.getSource());
+            response.put("proxyRole", activeAssignment.getProxyRole());
+            response.put("proxyScopeType", activeAssignment.getScopeType());
+            response.put("proxyScopeValue", activeAssignment.getScopeValue());
+            response.put("proxyPermissions", activeAssignment.getPermissions());
+        } else {
+            response.put("isProxy", false);
+            response.put("proxyPermissions", java.util.List.of());
+        }
+
         return ResponseEntity.ok(response);
     }
 
     @PostMapping("/microsoft")
     public ResponseEntity<?> authenticateMicrosoft(@Valid @RequestBody MicrosoftLoginRequest request) {
+        if (!microsoftLoginEnabled) {
+            return ResponseEntity.status(403).body(Map.of("message", "Microsoft login is currently disabled."));
+        }
+
         MicrosoftTokenService.MicrosoftUserInfo msInfo = microsoftTokenService.validateAndExtract(request.getIdToken());
+
         
         Optional<User> userOpt = userRepository.findByEntraObjectId(msInfo.oid());
         
@@ -286,6 +320,26 @@ public class AuthController {
                     response.put("designation", emp.getDesignation());
                     response.put("department", emp.getDepartment());
                 });
+        }
+
+        // Override isProxy if internal proxy exists
+        java.util.List<ProxyAssignment> activeProxies = proxyAssignmentService.getActiveAssignmentsForUser(userDetails.getId());
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+        ProxyAssignment activeAssignment = activeProxies.stream()
+            .filter(a -> a.getStartDate() == null || now.isAfter(a.getStartDate()))
+            .filter(a -> a.getExpiresAt() == null || now.isBefore(a.getExpiresAt()))
+            .findFirst().orElse(null);
+
+        if (activeAssignment != null) {
+            response.put("isProxy", true);
+            response.put("proxySource", activeAssignment.getSource());
+            response.put("proxyRole", activeAssignment.getProxyRole());
+            response.put("proxyScopeType", activeAssignment.getScopeType());
+            response.put("proxyScopeValue", activeAssignment.getScopeValue());
+            response.put("proxyPermissions", activeAssignment.getPermissions());
+        } else if (!isProxy) {
+            response.put("isProxy", false);
+            response.put("proxyPermissions", java.util.List.of());
         }
 
         return ResponseEntity.ok(response);

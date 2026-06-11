@@ -14,7 +14,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import com.example.deploymentlab.service.DepartmentAuthorityService;
+import com.example.proxy.service.ProxyAssignmentService;
+import com.example.proxy.model.ProxyAssignment;
+import com.example.deploymentlab.model.Employee;
 import org.springframework.web.bind.annotation.*;
+import java.util.stream.Collectors;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -27,17 +32,41 @@ public class InternController {
     private final InternRepository internRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder encoder;
+    private final DepartmentAuthorityService authorityService;
+    private final ProxyAssignmentService proxyAssignmentService;
 
-    public InternController(InternRepository internRepository, UserRepository userRepository, PasswordEncoder encoder) {
+    public InternController(InternRepository internRepository, UserRepository userRepository, 
+                            PasswordEncoder encoder, DepartmentAuthorityService authorityService,
+                            ProxyAssignmentService proxyAssignmentService) {
         this.internRepository = internRepository;
         this.userRepository = userRepository;
         this.encoder = encoder;
+        this.authorityService = authorityService;
+        this.proxyAssignmentService = proxyAssignmentService;
     }
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'EMPLOYEE')")
     public List<Intern> getAllInterns() {
-        return internRepository.findAll();
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        UserDetailsImpl userDetails = (UserDetailsImpl) auth.getPrincipal();
+        List<Intern> allInterns = internRepository.findAll();
+
+        if (authorityService.isAdmin(auth)) {
+            return allInterns;
+        }
+
+        Employee emp = authorityService.getEmployee(auth);
+        List<ProxyAssignment> proxies = proxyAssignmentService.getActiveAssignmentsForUser(userDetails.getId());
+        boolean isProxy = proxies.stream().anyMatch(a -> "DEPARTMENT".equals(a.getScopeType()));
+
+        if (emp != null && (isProxy || "General Manager".equals(emp.getDesignation()) || "Deputy General Manager".equals(emp.getDesignation()))) {
+            return allInterns.stream()
+                    .filter(i -> authorityService.canViewDepartment(auth, i.getDepartment()))
+                    .collect(Collectors.toList());
+        }
+
+        return allInterns;
     }
 
     @GetMapping("/{id}")
@@ -53,8 +82,24 @@ public class InternController {
             }
         }
 
-        Optional<Intern> intern = internRepository.findById(id);
-        return intern.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
+        Optional<Intern> internOpt = internRepository.findById(id);
+        if (internOpt.isEmpty()) return ResponseEntity.notFound().build();
+
+        Intern intern = internOpt.get();
+
+        if (!authorityService.isAdmin(auth)) {
+            Employee emp = authorityService.getEmployee(auth);
+            List<ProxyAssignment> proxies = proxyAssignmentService.getActiveAssignmentsForUser(userDetails.getId());
+            boolean isProxy = proxies.stream().anyMatch(a -> "DEPARTMENT".equals(a.getScopeType()));
+
+            if (emp != null && (isProxy || "General Manager".equals(emp.getDesignation()) || "Deputy General Manager".equals(emp.getDesignation()))) {
+                if (!authorityService.canViewDepartment(auth, intern.getDepartment())) {
+                     return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+                }
+            }
+        }
+
+        return ResponseEntity.ok(intern);
     }
 
     @GetMapping("/search")

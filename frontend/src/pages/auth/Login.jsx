@@ -332,7 +332,7 @@ const Login = () => {
           </button>
         </form>
 
-        {loginType === 'EMPLOYEE' && (
+        {loginType === 'EMPLOYEE' && import.meta.env.VITE_ENABLE_MICROSOFT_LOGIN === "true" && (
           <div className="mt-4">
             <div className="relative mb-4">
               <div className="absolute inset-0 flex items-center">

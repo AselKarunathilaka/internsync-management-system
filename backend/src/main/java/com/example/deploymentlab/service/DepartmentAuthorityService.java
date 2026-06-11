@@ -9,13 +9,18 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 
+import com.example.proxy.service.ProxyAuthorizationService;
+import com.example.proxy.config.ProxyPermissionConstants;
+
 @Service
 public class DepartmentAuthorityService {
 
     private final EmployeeRepository employeeRepository;
+    private final ProxyAuthorizationService proxyAuthorizationService;
 
-    public DepartmentAuthorityService(EmployeeRepository employeeRepository) {
+    public DepartmentAuthorityService(EmployeeRepository employeeRepository, ProxyAuthorizationService proxyAuthorizationService) {
         this.employeeRepository = employeeRepository;
+        this.proxyAuthorizationService = proxyAuthorizationService;
     }
 
     public boolean isAdmin(Authentication auth) {
@@ -76,24 +81,43 @@ public class DepartmentAuthorityService {
         return false;
     }
 
+    public boolean hasInternalProxyPermission(Authentication auth, String permission, String department) {
+        if (auth == null || !auth.isAuthenticated()) return false;
+        Object principal = auth.getPrincipal();
+        if (principal instanceof UserDetailsImpl) {
+            UserDetailsImpl userDetails = (UserDetailsImpl) principal;
+            return proxyAuthorizationService.hasActiveProxyPermission(userDetails.getId(), permission, "DEPARTMENT", department);
+        }
+        return false;
+    }
+
     public boolean canManageDepartmentInterns(Authentication auth, String department) {
         if (isAdmin(auth)) return true;
-        return isActualGmOrDgm(auth, department) || hasEntraProxyFull(auth, department);
+        return isActualGmOrDgm(auth, department) 
+            || hasEntraProxyFull(auth, department)
+            || hasInternalProxyPermission(auth, ProxyPermissionConstants.ASSIGN_INTERN_TO_PROJECT, department); // Approximate check, or separate them
     }
 
     public boolean canAssignInternsToProject(Authentication auth, String department) {
         if (isAdmin(auth)) return true;
-        return isActualGmOrDgm(auth, department) || hasEntraProxyFull(auth, department);
+        return isActualGmOrDgm(auth, department) 
+            || hasEntraProxyFull(auth, department)
+            || hasInternalProxyPermission(auth, ProxyPermissionConstants.ASSIGN_INTERN_TO_PROJECT, department);
     }
 
     public boolean canUpdateStipend(Authentication auth, String department) {
         if (isAdmin(auth)) return true;
-        return isActualGmOrDgm(auth, department) || hasEntraProxyFull(auth, department);
+        return isActualGmOrDgm(auth, department) 
+            || hasEntraProxyFull(auth, department)
+            || hasInternalProxyPermission(auth, ProxyPermissionConstants.UPDATE_PAID_NON_PAID_STATUS, department);
     }
 
     public boolean canViewDepartment(Authentication auth, String department) {
         if (isAdmin(auth)) return true;
-        return isActualGmOrDgm(auth, department) || hasEntraProxyFull(auth, department);
+        return isActualGmOrDgm(auth, department) 
+            || hasEntraProxyFull(auth, department)
+            || hasInternalProxyPermission(auth, ProxyPermissionConstants.VIEW_DEPARTMENT_INTERNS, department)
+            || hasInternalProxyPermission(auth, ProxyPermissionConstants.VIEW_DEPARTMENT_PROJECTS, department);
     }
 
     public boolean canCreateOrEditProject(Authentication auth, String department) {

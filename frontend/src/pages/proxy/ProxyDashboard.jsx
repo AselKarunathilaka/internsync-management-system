@@ -2,23 +2,101 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { PieChart, Pie, Cell, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
 import api from '../../api';
+import { getMyProxyAccess } from '../../features/proxy/api/proxyApi';
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+const parseDate = (dt) => {
+    if (!dt) return null;
+    if (Array.isArray(dt)) return new Date(dt[0], dt[1] - 1, dt[2], dt[3] || 0, dt[4] || 0);
+    return new Date(dt);
+};
+
+const fmt = (dt) => {
+    const d = parseDate(dt);
+    if (!d) return '—';
+    return d.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+};
+
+const getTimeRemaining = (expiresAt) => {
+    const d = parseDate(expiresAt);
+    if (!d) return null;
+    const diffMs = d - new Date();
+    if (diffMs <= 0) return { label: 'Expired', expired: true, urgent: false };
+    const days = Math.floor(diffMs / 86400000);
+    const hours = Math.floor((diffMs % 86400000) / 3600000);
+    const mins = Math.floor((diffMs % 3600000) / 60000);
+    let label;
+    if (days > 0) label = `${days}d ${hours}h remaining`;
+    else if (hours > 0) label = `${hours}h ${mins}m remaining`;
+    else label = `${mins}m remaining`;
+    return { label, expired: false, urgent: diffMs < 86400000 };
+};
+
+// ─── Proxy Access Notification Banner ────────────────────────────────────────
+
+const ProxyAccessBanner = ({ proxyAccess }) => {
+    if (!proxyAccess?.isProxy) return null;
+    const remaining = proxyAccess.expiresAt ? getTimeRemaining(proxyAccess.expiresAt) : null;
+
+    if (remaining?.expired) return null; // don't show if already expired
+
+    const urgent = remaining?.urgent;
+    const noExpiry = !proxyAccess.expiresAt;
+
+    return (
+        <div className={`rounded-2xl p-5 border flex items-start gap-4 ${
+            urgent ? 'bg-red-50 border-red-200' : noExpiry ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'
+        }`}>
+            <div className={`text-3xl ${urgent ? 'animate-bounce' : ''}`}>
+                {urgent ? '⚠️' : noExpiry ? '🔑' : '🕐'}
+            </div>
+            <div className="flex-1">
+                <h4 className={`font-extrabold text-sm mb-1 ${
+                    urgent ? 'text-red-700' : noExpiry ? 'text-green-700' : 'text-amber-800'
+                }`}>
+                    {urgent
+                        ? `⚠ Proxy Access Expiring Soon — ${remaining.label}`
+                        : noExpiry
+                            ? 'Your Proxy Access is Active (No Expiry)'
+                            : `Proxy Access Active — ${remaining?.label || 'No expiry'}`
+                    }
+                </h4>
+                <p className="text-xs text-slate-600">
+                    You are acting as a proxy for <strong>{proxyAccess.scopeValue}</strong>.
+                    {proxyAccess.expiresAt && <> Access expires on <strong>{fmt(proxyAccess.expiresAt)}</strong>.</>}
+                </p>
+                {proxyAccess.permissions?.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                        {proxyAccess.permissions.map(p => (
+                            <span key={p} className="px-2 py-0.5 bg-white/70 border border-current/20 rounded text-xs font-medium text-slate-700">{p.replace(/_/g, ' ')}</span>
+                        ))}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
 
 const ProxyDashboard = () => {
   const [data, setData] = useState(null);
+  const [proxyAccess, setProxyAccess] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    // We reuse the GM dashboard endpoint because proxy is authorized to view department
-    api.get('/dashboard/gm')
-      .then(res => {
-        setData(res.data);
+    // Load dashboard data and proxy access in parallel
+    Promise.all([
+        api.get('/dashboard/gm'),
+        getMyProxyAccess().catch(() => null),
+    ]).then(([dashRes, proxyRes]) => {
+        setData(dashRes.data);
+        setProxyAccess(proxyRes);
         setLoading(false);
-      })
-      .catch(err => {
+    }).catch(err => {
         setError(err.response?.data?.message || 'Failed to load dashboard data.');
         setLoading(false);
-      });
+    });
   }, []);
 
   if (loading) return <div className="flex justify-center items-center h-[50vh]"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div></div>;
@@ -41,13 +119,16 @@ const ProxyDashboard = () => {
               {data.department ? data.department.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase()) : 'Unknown'} Proxy Dashboard
             </h2>
             <p className="text-indigo-600 font-bold text-lg mt-1">
-              Delegated proxy access via Microsoft Entra ID
+              Delegated access assigned internally by department authority
             </p>
           </div>
           <Link to="/employee-profile" className="btn bg-white/60 text-slate-700 hover:bg-white/80 shadow-sm border border-white/50">
             My Profile
           </Link>
         </div>
+
+        {/* Proxy Time Remaining Notification */}
+        <ProxyAccessBanner proxyAccess={proxyAccess} />
 
         {/* Summary Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

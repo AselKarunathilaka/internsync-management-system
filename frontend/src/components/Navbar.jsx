@@ -44,6 +44,7 @@ const Navbar = () => {
                   <Link to="/employees" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">Employees</Link>
                   <Link to="/interns" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">Interns</Link>
                   <Link to="/projects" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">Projects</Link>
+                  <Link to="/proxy-management" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">Proxy Mgmt</Link>
                   <Link to="/admin/profile" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">My Profile</Link>
                 </>
               )}
@@ -61,6 +62,7 @@ const Navbar = () => {
                   <Link to="/gm-interns" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">Dept. Interns</Link>
                   <Link to="/gm-projects" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">Dept. Projects</Link>
                   <Link to="/gm-employees" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">Dept. Employees</Link>
+                  <Link to="/proxy-management" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">Proxy Mgmt</Link>
                   <Link to="/employee-profile" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">My Profile</Link>
                 </>
               )}
@@ -78,6 +80,7 @@ const Navbar = () => {
                   <Link to="/gm-interns" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">Dept. Interns</Link>
                   <Link to="/gm-projects" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">Dept. Projects</Link>
                   <Link to="/gm-employees" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">Dept. Employees</Link>
+                  <Link to="/proxy-management" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">Proxy Mgmt</Link>
                   <Link to="/employee-profile" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">My Profile</Link>
                 </>
               )}

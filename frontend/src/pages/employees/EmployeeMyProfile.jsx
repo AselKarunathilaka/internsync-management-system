@@ -226,20 +226,26 @@ const EmployeeMyProfile = () => {
                 </div>
                 <div>
                   <p className="text-sm font-bold text-gray-500">Source</p>
-                  <p className="text-indigo-600 font-bold">Microsoft Entra ID</p>
+                  <p className="text-indigo-600 font-bold">{user?.proxySource || 'Microsoft Entra ID'}</p>
                 </div>
                 <div>
                   <p className="text-sm font-bold text-gray-500">Proxy Role</p>
-                  <p className="text-slate-800 font-bold">Digital Platforms Proxy</p>
+                  <p className="text-slate-800 font-bold">{user?.proxyRole || 'Digital Platforms Proxy'}</p>
                 </div>
               </div>
 
               <div className="mt-6">
                 <h4 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-2">Allowed Actions</h4>
                 <ul className="list-disc list-inside text-gray-600 space-y-1 ml-2">
-                  <li>Update paid/non-paid status for interns</li>
-                  <li>Assign interns to projects</li>
-                  <li>Remove interns from projects</li>
+                  {user?.proxyPermissions && user.proxyPermissions.length > 0 ? (
+                    user.proxyPermissions.map((perm, idx) => <li key={idx}>{perm}</li>)
+                  ) : (
+                    <>
+                      <li>Update paid/non-paid status for interns</li>
+                      <li>Assign interns to projects</li>
+                      <li>Remove interns from projects</li>
+                    </>
+                  )}
                 </ul>
               </div>
 
