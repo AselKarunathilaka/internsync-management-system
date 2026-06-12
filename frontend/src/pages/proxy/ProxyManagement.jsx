@@ -10,7 +10,7 @@ import api from '../../api';
 const parseDate = (dt) => {
     if (!dt) return null;
     if (Array.isArray(dt)) return new Date(Date.UTC(dt[0], dt[1] - 1, dt[2], dt[3] || 0, dt[4] || 0));
-    const dtStr = typeof dt === 'string' && !dt.endsWith('Z') ? dt + 'Z' : dt;
+    const dtStr = typeof dt === 'string' && !dt.includes('T') ? dt : (typeof dt === 'string' && !dt.endsWith('Z') && !dt.includes('+') ? dt + '+05:30' : dt);
     return new Date(dtStr);
 };
 
@@ -264,14 +264,6 @@ const ProxyManagement = () => {
         if (!form.startDate || !form.expiresAt) { setError('Please set both a start date and an end date.'); return; }
         if (new Date(form.startDate) >= new Date(form.expiresAt)) { setError('End date must be after start date.'); return; }
 
-        // Convert datetime-local strings (browser local time) to ISO UTC strings for the backend.
-        // The backend stores LocalDateTime — if we send the raw local string it treats it as UTC,
-        // causing a 5h30m offset error for Sri Lanka users.
-        const toUtcIso = (localStr) => {
-            const d = new Date(localStr); // parsed as LOCAL time by the browser
-            return d.toISOString().slice(0, 19); // "2026-06-11T15:35:00" (UTC, no Z)
-        };
-
         try {
             await assignProxy({
                 proxyUserId: form.proxyUserId,
@@ -279,8 +271,8 @@ const ProxyManagement = () => {
                 scopeValue: form.scopeValue,
                 proxyRole: form.proxyRole,
                 permissions: form.permissions,
-                startDate: toUtcIso(form.startDate),
-                expiresAt: toUtcIso(form.expiresAt),
+                startDate: form.startDate,
+                expiresAt: form.expiresAt,
             });
             setSuccessMsg('Proxy assigned successfully.');
             setForm(prev => ({ ...prev, proxyUserId: '', permissions: [], startDate: '', expiresAt: '' }));

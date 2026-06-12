@@ -8,7 +8,7 @@ const fmtSL = (dt) => {
   if (!dt) return '—';
   let d;
   if (Array.isArray(dt)) d = new Date(Date.UTC(dt[0], dt[1] - 1, dt[2], dt[3] || 0, dt[4] || 0));
-  else d = new Date(typeof dt === 'string' && !dt.endsWith('Z') ? dt + 'Z' : dt);
+  else d = new Date(typeof dt === 'string' && !dt.includes('T') ? dt : (typeof dt === 'string' && !dt.endsWith('Z') && !dt.includes('+') ? dt + '+05:30' : dt));
   return d.toLocaleString('en-GB', {
     timeZone: 'Asia/Colombo',
     day: '2-digit', month: 'short', year: 'numeric',
@@ -20,7 +20,7 @@ const getTimeRemaining = (expiresAt) => {
   if (!expiresAt) return null;
   let d;
   if (Array.isArray(expiresAt)) d = new Date(Date.UTC(expiresAt[0], expiresAt[1] - 1, expiresAt[2], expiresAt[3] || 0, expiresAt[4] || 0));
-  else d = new Date(typeof expiresAt === 'string' && !expiresAt.endsWith('Z') ? expiresAt + 'Z' : expiresAt);
+  else d = new Date(typeof expiresAt === 'string' && !expiresAt.includes('T') ? expiresAt : (typeof expiresAt === 'string' && !expiresAt.endsWith('Z') && !expiresAt.includes('+') ? expiresAt + '+05:30' : expiresAt));
   const diffMs = d - Date.now();
   if (diffMs <= 0) return { label: 'Expired', expired: true, urgent: false, critical: false };
   const days = Math.floor(diffMs / 86400000);

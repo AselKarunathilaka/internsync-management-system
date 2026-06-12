@@ -59,7 +59,9 @@ const Login = () => {
       const designation = data.designation;
       const isProxy = data.isProxy === true;
 
-      if (designation === 'General Manager' || isProxy) {
+      if (isProxy) {
+        navigate('/proxy-dashboard');
+      } else if (designation === 'General Manager') {
         navigate('/gm-dashboard');
       } else if (designation === 'Deputy General Manager') {
         navigate('/dgm-dashboard');
