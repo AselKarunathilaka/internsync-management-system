@@ -19,7 +19,7 @@ const Navbar = () => {
   const isProxy = isProxyUser(user);
   const isGM = isActualGM(user);
   const isDGM = isActualDGM(user);
-  const isRegularEmployee = isEmployeeUser && !isGM && !isDGM && !isProxy;
+  const isRegularEmployee = isEmployeeUser && !isGM && !isDGM;
 
   return (
     <header className="glass-header">
@@ -71,7 +71,6 @@ const Navbar = () => {
                   <Link to="/proxy-dashboard" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">Proxy Dashboard</Link>
                   <Link to="/gm-interns" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">Dept. Interns</Link>
                   <Link to="/gm-projects" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">Dept. Projects</Link>
-                  <Link to="/employee-profile" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">My Profile</Link>
                 </>
               )}
               {isDGM && (
@@ -86,11 +85,11 @@ const Navbar = () => {
               )}
               {isRegularEmployee && (
                 <>
-                  <Link to="/employee-dashboard" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">Dashboard</Link>
-                  <Link to="/employee-profile" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">My Profile</Link>
+                  <Link to="/employee-dashboard" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">My Dashboard</Link>
                   <Link to="/employee-projects" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">My Projects</Link>
                   <Link to="/employee-tasks" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">Task Checklist</Link>
                   <Link to="/employee-schedules" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">Working Days</Link>
+                  <Link to="/employee-profile" className="text-slate-700 hover:text-indigo-600 hover:bg-white/40 px-3 py-2 rounded-xl font-bold transition-all">My Profile</Link>
                 </>
               )}
               <span className="text-gray-500 text-sm ml-4 border-l pl-4 border-gray-300">
