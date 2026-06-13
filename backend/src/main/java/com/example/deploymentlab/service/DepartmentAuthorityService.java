@@ -91,6 +91,18 @@ public class DepartmentAuthorityService {
         return false;
     }
 
+    public boolean isActingAsProxy(Authentication auth, String department) {
+        if (isAdmin(auth) || isActualGmOrDgm(auth, department)) return false;
+        
+        if (hasEntraProxyFull(auth, department)) return true;
+        
+        if (auth != null && auth.isAuthenticated() && auth.getPrincipal() instanceof UserDetailsImpl) {
+            UserDetailsImpl userDetails = (UserDetailsImpl) auth.getPrincipal();
+            return proxyAuthorizationService.hasAnyActiveProxyPermission(userDetails.getId(), "DEPARTMENT", department);
+        }
+        return false;
+    }
+
     public boolean canManageDepartmentInterns(Authentication auth, String department) {
         if (isAdmin(auth)) return true;
         return isActualGmOrDgm(auth, department) 

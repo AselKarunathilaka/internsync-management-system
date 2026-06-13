@@ -41,5 +41,30 @@ public class ProxyAuthorizationService {
     public boolean canAssignUserAsProxy(String assignerId, String targetUserId, String scopeType, String scopeValue) {
         return proxyHostIntegration.canAssignUserAsProxy(assignerId, targetUserId, scopeType, scopeValue);
     }
+
+    public boolean hasAnyActiveProxyPermission(String userId, String scopeType, String scopeValue) {
+        List<ProxyAssignment> assignments = proxyAssignmentRepository.findByProxyUserIdAndActiveTrueAndRemovedAtIsNull(userId);
+        LocalDateTime now = LocalDateTime.now();
+        System.out.println("DEBUG: hasAnyActiveProxyPermission for " + userId + ". Found assignments: " + assignments.size() + ", now: " + now);
+        
+        return assignments.stream()
+            .filter(a -> {
+                boolean match = "INTERNAL".equals(a.getSource()) && 
+                                scopeType.equals(a.getScopeType()) && 
+                                scopeValue.equals(a.getScopeValue());
+                System.out.println("DEBUG: Assignment " + a.getId() + " basic match: " + match + " (Source: " + a.getSource() + ", ScopeValue: " + a.getScopeValue() + ")");
+                return match;
+            })
+            .filter(a -> {
+                boolean started = a.getStartDate() == null || now.isAfter(a.getStartDate());
+                System.out.println("DEBUG: Assignment " + a.getId() + " started: " + started + " (StartDate: " + a.getStartDate() + ")");
+                return started;
+            })
+            .anyMatch(a -> {
+                boolean notExpired = a.getExpiresAt() == null || now.isBefore(a.getExpiresAt());
+                System.out.println("DEBUG: Assignment " + a.getId() + " not expired: " + notExpired + " (ExpiresAt: " + a.getExpiresAt() + ")");
+                return notExpired;
+            });
+    }
 }
 

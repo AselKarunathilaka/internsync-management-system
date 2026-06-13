@@ -353,7 +353,8 @@ const ProxyManagement = () => {
             <div className="flex gap-1 bg-white/60 backdrop-blur border border-white/80 shadow-sm p-1 rounded-xl w-fit">
                 {[
                     { id: 'assign', label: '📋 Assignments', count: assignments.length },
-                    { id: 'logs', label: '📜 Activity Logs', count: logs.length },
+                    { id: 'logs', label: '📜 Activity Logs', count: logs.filter(l => l.targetType === 'ProxyAssignment').length },
+                    { id: 'tasks', label: '🚀 Business Actions', count: logs.filter(l => l.targetType !== 'ProxyAssignment').length },
                 ].map(tab => (
                     <button
                         key={tab.id}
@@ -656,7 +657,7 @@ const ProxyManagement = () => {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-50">
-                                {logs.map(log => (
+                                {logs.filter(l => l.targetType === 'ProxyAssignment').map(log => (
                                     <tr key={log.id} className="hover:bg-slate-50/60 transition-colors">
                                         <td className="px-3 py-4 text-sm text-slate-500 font-mono">
                                             {fmt(log.timestamp)}
@@ -698,11 +699,92 @@ const ProxyManagement = () => {
                                         </td>
                                     </tr>
                                 ))}
-                                {logs.length === 0 && (
+                                {logs.filter(l => l.targetType === 'ProxyAssignment').length === 0 && (
                                     <tr>
                                         <td colSpan="7" className="py-12 text-center text-slate-400">
                                             <div className="text-4xl mb-3">📋</div>
                                             <p className="font-medium">No activity logs yet</p>
+                                            <p className="text-sm mt-1">Logs will appear here as proxy assignments are managed</p>
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+
+            {/* ═══════════════ BUSINESS ACTIONS TAB ═══════════════════════════════════ */}
+            {activeTab === 'tasks' && (
+                <div className="glass-card p-6">
+                    <div className="flex items-center justify-between mb-5">
+                        <div>
+                            <h3 className="text-xl font-bold text-slate-800">Proxy Business Actions</h3>
+                            <p className="text-sm text-slate-400 mt-0.5">Audit trail of business tasks performed by proxies</p>
+                        </div>
+                        <span className="text-sm text-slate-400 bg-slate-100 px-3 py-1 rounded-full font-medium">
+                            {logs.filter(l => l.targetType !== 'ProxyAssignment').length} entries
+                        </span>
+                    </div>
+                    <div className="overflow-x-auto rounded-xl border border-slate-100">
+                        <table className="w-full text-left text-sm">
+                            <thead>
+                                <tr className="bg-slate-50 border-b border-slate-200">
+                                    {['Timestamp', 'Performed By', 'Action', 'Target', 'Permissions', 'Scope', 'Result'].map(h => (
+                                        <th key={h} className="px-3 py-3 font-semibold text-slate-600 text-sm">
+                                            {h}
+                                        </th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-50">
+                                {logs.filter(l => l.targetType !== 'ProxyAssignment').map(log => (
+                                    <tr key={log.id} className="hover:bg-slate-50/60 transition-colors">
+                                        <td className="px-3 py-4 text-sm text-slate-500 font-mono">
+                                            {fmt(log.timestamp)}
+                                        </td>
+                                        <td className="px-3 py-4">
+                                            <p className="font-semibold text-slate-800 text-sm">{log.performedByName || '—'}</p>
+                                            {log.performedByEmail && (
+                                                <p className="text-xs text-slate-400">{log.performedByEmail}</p>
+                                            )}
+                                        </td>
+                                        <td className="px-3 py-4">
+                                            <span className="px-2 py-1 bg-slate-100 text-slate-700 rounded text-xs font-mono font-bold">
+                                                {log.action || '—'}
+                                            </span>
+                                        </td>
+                                        <td className="px-3 py-4 text-slate-700 text-sm">
+                                            {log.targetName || log.targetId || '—'}
+                                        </td>
+                                        <td className="px-3 py-4">
+                                            {log.permissionUsed ? (
+                                                <div className="flex flex-wrap gap-1.5 max-w-[200px]">
+                                                    {log.permissionUsed.split(', ').map(perm => {
+                                                        const p = perm.trim();
+                                                        return p ? (
+                                                            <span key={p} className={`px-2 py-0.5 rounded text-xs font-semibold ${pc(p)}`}>
+                                                                {pl(p)}
+                                                            </span>
+                                                        ) : null;
+                                                    })}
+                                                </div>
+                                            ) : <span className="text-slate-300">—</span>}
+                                        </td>
+                                        <td className="px-3 py-4 text-slate-600 text-sm">{log.scopeValue || '—'}</td>
+                                        <td className="px-3 py-4">
+                                            {log.success
+                                                ? <span className="flex items-center gap-1.5 text-green-600 text-sm font-bold"><span className="w-2 h-2 bg-green-500 rounded-full"></span> Success</span>
+                                                : <span className="flex items-center gap-1.5 text-red-600 text-sm font-bold"><span className="w-2 h-2 bg-red-500 rounded-full"></span> Failed</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                ))}
+                                {logs.filter(l => l.targetType !== 'ProxyAssignment').length === 0 && (
+                                    <tr>
+                                        <td colSpan="7" className="py-12 text-center text-slate-400">
+                                            <div className="text-4xl mb-3">📋</div>
+                                            <p className="font-medium">No business actions yet</p>
                                             <p className="text-sm mt-1">Logs will appear here as proxies perform actions in the system</p>
                                         </td>
                                     </tr>

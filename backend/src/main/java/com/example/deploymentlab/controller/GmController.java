@@ -25,6 +25,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import com.example.proxy.service.ProxyAuditService;
+import com.example.proxy.integration.HostUserDetails;
+
 @RestController
 @RequestMapping("/api/gm")
 @PreAuthorize("hasRole('EMPLOYEE')")
@@ -34,13 +37,16 @@ public class GmController {
     private final EmployeeRepository employeeRepository;
     private final ProjectRepository projectRepository;
     private final DepartmentAuthorityService authorityService;
+    private final ProxyAuditService proxyAuditService;
 
     public GmController(InternRepository internRepository, EmployeeRepository employeeRepository, 
-                        ProjectRepository projectRepository, DepartmentAuthorityService authorityService) {
+                        ProjectRepository projectRepository, DepartmentAuthorityService authorityService,
+                        ProxyAuditService proxyAuditService) {
         this.internRepository = internRepository;
         this.employeeRepository = employeeRepository;
         this.projectRepository = projectRepository;
         this.authorityService = authorityService;
+        this.proxyAuditService = proxyAuditService;
     }
 
     private Employee getDepartmentActor() {
@@ -197,7 +203,16 @@ public class GmController {
                 InternStipendType type = InternStipendType.valueOf(stipendTypeStr);
                 intern.setStipendType(type);
                 intern.setUpdatedAt(LocalDateTime.now());
-                return ResponseEntity.ok(internRepository.save(intern));
+                Intern savedIntern = internRepository.save(intern);
+                
+                if (authorityService.isActingAsProxy(auth, intern.getDepartment())) {
+                    UserDetailsImpl userDetails = (UserDetailsImpl) auth.getPrincipal();
+                    HostUserDetails hostUser = new HostUserDetails(userDetails.getId(), userDetails.getUsername(), userDetails.getEmail(), actor.getDesignation(), null);
+                    proxyAuditService.logAction(hostUser, null, "GM_DGM_PROXY", "INTERNAL", "DEPARTMENT", intern.getDepartment(), 
+                        "UPDATE_INTERN_PAYMENT_STATUS", "UPDATE_STIPEND_TYPE", "INTERN", intern.getId(), intern.getFullName(), true, null);
+                }
+                
+                return ResponseEntity.ok(savedIntern);
             } catch (IllegalArgumentException ex) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", "Invalid stipend type. Must be PENDING, PAID, or NON_PAID."));
             }
@@ -249,6 +264,13 @@ public class GmController {
             intern.setUpdatedAt(LocalDateTime.now());
             internRepository.save(intern);
 
+            if (authorityService.isActingAsProxy(auth, project.getDepartment())) {
+                UserDetailsImpl userDetails = (UserDetailsImpl) auth.getPrincipal();
+                HostUserDetails hostUser = new HostUserDetails(userDetails.getId(), userDetails.getUsername(), userDetails.getEmail(), actor.getDesignation(), null);
+                proxyAuditService.logAction(hostUser, null, "GM_DGM_PROXY", "INTERNAL", "DEPARTMENT", project.getDepartment(), 
+                    "ASSIGN_INTERN_TO_PROJECT", "ASSIGN_INTERN_TO_PROJECT", "PROJECT_INTERN", project.getId(), project.getProjectName() + " -> " + intern.getFullName(), true, null);
+            }
+
             return ResponseEntity.ok(Map.of("message", "Intern assigned to project successfully."));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", e.getMessage()));
@@ -287,6 +309,20 @@ public class GmController {
                 project.getAssignedInternIds().remove(internId);
                 project.setUpdatedAt(LocalDateTime.now());
                 projectRepository.save(project);
+            }
+
+            System.out.println("DEBUG: Executing proxy check for user " + auth.getName() + " on department " + project.getDepartment());
+            boolean isProxy = authorityService.isActingAsProxy(auth, project.getDepartment());
+            System.out.println("DEBUG: isActingAsProxy returned: " + isProxy);
+
+            if (isProxy) {
+                UserDetailsImpl userDetails = (UserDetailsImpl) auth.getPrincipal();
+                HostUserDetails hostUser = new HostUserDetails(userDetails.getId(), userDetails.getUsername(), userDetails.getEmail(), null, null);
+                
+                String internName = optionalIntern.isPresent() ? optionalIntern.get().getFullName() : internId;
+                System.out.println("DEBUG: Logging action for proxy: " + userDetails.getUsername());
+                proxyAuditService.logAction(hostUser, null, "GM_DGM_PROXY", "INTERNAL", "DEPARTMENT", project.getDepartment(), 
+                    "REMOVE_INTERN_FROM_PROJECT", "REMOVE_INTERN_FROM_PROJECT", "PROJECT_INTERN", project.getId(), project.getProjectName() + " -> " + internName, true, null);
             }
 
             return ResponseEntity.ok(Map.of("message", "Intern removed from project successfully."));
